@@ -10,6 +10,10 @@ object EverydayScreen {
         ui.time("Until", Prefs.SCHEDULE_END, 23 * 60)
         ui.toggle("Hide on the lock screen", Prefs.HIDE_LOCK, false)
 
+        ui.section("Screen off")
+        ui.toggle("Wake screen for calls", Prefs.WAKE_CALLS, true, "Turns the screen on when a call comes in so you can answer from the island.")
+        ui.toggle("Wake screen for notifications", Prefs.WAKE_NOTIFS, true, "Briefly turns the screen on to show new notifications. Uses a little extra battery.")
+
         ui.section("Hide automatically")
         ui.toggle("Show in full screen", Prefs.SHOW_IN_FULLSCREEN, false,
             "Off (default): the island hides while an app is full screen, e.g. a video or a game, and returns when you leave it. System alerts, the volume slider and incoming calls still appear. Needs the accessibility service.")

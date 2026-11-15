@@ -137,9 +137,24 @@ object IslandController : SharedPreferences.OnSharedPreferenceChangeListener {
         val existing = acts[a.id]
         a.postedAt = if (existing != null && !announce) existing.postedAt else System.currentTimeMillis()
         acts[a.id] = a
-        if (announce) { snoozed.remove(a.id); announceId = a.id }
+        if (announce) { snoozed.remove(a.id); announceId = a.id; wakeScreenFor(a) }
         scheduleExpiry(a)
         recompute()
+    }
+
+    /** Turns the screen on for a new call / notification so the island can be seen while the phone is off. */
+    @Suppress("DEPRECATION")
+    private fun wakeScreenFor(a: IslandActivity) {
+        if (screenOn || !enabled) return
+        val call = a.type == ActivityType.CALL
+        val wanted = if (call) prefs.getBoolean(Prefs.WAKE_CALLS, true)
+        else a.id.startsWith("n:") && prefs.getBoolean(Prefs.WAKE_NOTIFS, true)
+        if (!wanted) return
+        try {
+            val pm = app.getSystemService(PowerManager::class.java)
+            val lock = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP, "orbit:alert")
+            lock.acquire(if (call) 30_000L else 6_000L)
+        } catch (_: Exception) {}
     }
 
     fun remove(id: String) {
@@ -297,7 +312,7 @@ object IslandController : SharedPreferences.OnSharedPreferenceChangeListener {
         if (!enabled || !screenOn || panelOpen) return false
         if (fullscreen && !prefs.getBoolean(Prefs.SHOW_IN_FULLSCREEN, false) && !hasAlertShowing()) return false
         if (prefs.getBoolean(Prefs.SCHEDULE_ON, false) && !inSchedule()) return false
-        if (prefs.getBoolean(Prefs.HIDE_LOCK, false) &&
+        if (prefs.getBoolean(Prefs.HIDE_LOCK, false) && !hasAlertShowing() &&
             app.getSystemService(KeyguardManager::class.java).isKeyguardLocked) return false
         val fg = foregroundPkg
         if (fg != null && prefs.getStringSet(Prefs.HIDE_APPS, emptySet())?.contains(fg) == true) return false

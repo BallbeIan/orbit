@@ -39,6 +39,8 @@ object Prefs {
     const val SCHEDULE_START = "schedule_start_min"
     const val SCHEDULE_END = "schedule_end_min"
     const val HIDE_LOCK = "hide_on_lock"
+    const val WAKE_CALLS = "wake_for_calls"
+    const val WAKE_NOTIFS = "wake_for_notifications"
     const val HIDE_APPS = "hide_apps"              // string set
     const val HIDE_LANDSCAPE = "hide_landscape"
     const val SHOW_IN_FULLSCREEN = "show_in_fullscreen"   // default off: the island hides while an app is full screen
