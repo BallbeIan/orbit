@@ -1,4 +1,4 @@
-# Orbit: Camera Island — Privacy Policy
+# Orbit: Dynamic Island — Privacy Policy
 
 _Last updated: 11 November 2026_
 
@@ -33,4 +33,4 @@ Orbit is not directed at children and collects nothing from anyone.
 
 ## Changes and contact
 
-If this policy changes, the new version will be published at this address with a new date. Questions: open an issue at https://github.com/BallbeIan/orbit-camera-island/issues.
+If this policy changes, the new version will be published at this address with a new date. Questions: open an issue at https://github.com/BallbeIan/orbit/issues.

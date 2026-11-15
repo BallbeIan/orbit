@@ -3,7 +3,7 @@ name: Release
 # Publishes a signed APK to GitHub Releases when a version tag is pushed:
 #   git tag v1.1 && git push origin v1.1
 # The tag must match versionName in app/build.gradle.kts (v1.1 <-> "1.1").
-# Needs four repository secrets (see docs/play-store/RELEASING.md): KEYSTORE_BASE64,
+# Needs four repository secrets (see RELEASING.md (kept in the playstore folder next to the repo)): KEYSTORE_BASE64,
 # KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD.
 
 on:
@@ -44,7 +44,7 @@ jobs:
         run: |
           for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
             if [ -z "${!name}" ]; then
-              echo "::error::Repository secret $name is not set, so the APK cannot be signed. See docs/play-store/RELEASING.md."
+              echo "::error::Repository secret $name is not set, so the APK cannot be signed. See RELEASING.md (kept in the playstore folder next to the repo)."
               exit 1
             fi
           done

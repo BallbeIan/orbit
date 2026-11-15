@@ -10,9 +10,9 @@ A small black pill around your front camera that shows what's happening on your 
 ![No internet permission](https://img.shields.io/badge/internet-never%20requested-success)
 ![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue)
 
-[![Download the latest APK](https://img.shields.io/github/v/release/BallbeIan/orbit-camera-island?label=download%20APK&logo=android&logoColor=white&color=3DDC84)](https://github.com/BallbeIan/orbit-camera-island/releases/latest)
+[![Download the latest APK](https://img.shields.io/github/v/release/BallbeIan/orbit?label=download%20APK&logo=android&logoColor=white&color=3DDC84)](https://github.com/BallbeIan/orbit/releases/latest)
 
-**[Download the latest APK](https://github.com/BallbeIan/orbit-camera-island/releases/latest)** and follow [Installing](#installing). A Google Play release is planned.
+**[Download the latest APK](https://github.com/BallbeIan/orbit/releases/latest)** and follow [Installing](#installing). A Google Play release is planned.
 
 <img src="docs/images/island-hero.jpg" alt="Orbit on a foldable phone: a music pill with album art and equaliser bars, a timer pill with a small music pill beside it, and a notification peek" width="760">
 
@@ -73,7 +73,7 @@ Show the island only when something is happening (or always), set active hours, 
 
 ## Installing
 
-1. On your phone, open the [latest release](https://github.com/BallbeIan/orbit-camera-island/releases/latest) and download `Orbit-<version>.apk`. Open it and allow your browser or file manager to install apps when Android asks.
+1. On your phone, open the [latest release](https://github.com/BallbeIan/orbit/releases/latest) and download `Orbit-<version>.apk`. Open it and allow your browser or file manager to install apps when Android asks.
 2. Open **Orbit**. The Setup card on the home screen lists what it needs; tap **Grant** on **Notification access** (required) and **Accessibility service** (recommended), and agree to the explanation shown for each.
 3. On Android 13 and newer, those two switches may be greyed out for an app installed outside the Play Store. Open **App info → ⋮ menu → Allow restricted settings**, then try again.
 4. Play some music, start a timer, or toggle Do Not Disturb: the island appears around your front camera.
@@ -131,8 +131,8 @@ On Android 13 and newer, an app installed outside the Play Store needs **"Allow 
 You need JDK 17 and the Android SDK (platform 36, build-tools 36.0.0).
 
 ```bash
-git clone https://github.com/BallbeIan/orbit-camera-island.git
-cd orbit-camera-island
+git clone https://github.com/BallbeIan/orbit.git
+cd orbit
 export ANDROID_HOME=~/Android/Sdk
 ./gradlew assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
 ./gradlew lint
