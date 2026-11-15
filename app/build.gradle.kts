@@ -19,8 +19,8 @@ android {
         applicationId = "app.orbit.cameraisland"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.5"
+        versionCode = 7
+        versionName = "3.0"
     }
 
     signingConfigs {
@@ -35,6 +35,13 @@ android {
     }
 
     buildTypes {
+        // Side-by-side design preview: its own app id, so it installs next to the real app (debug-signed).
+        create("preview") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".preview"
+            versionNameSuffix = "-preview"
+            matchingFallbacks += "debug"
+        }
         release {
             // R8 shrinks and optimises the code; resource shrinking drops anything unused.
             isMinifyEnabled = true

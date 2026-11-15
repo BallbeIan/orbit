@@ -59,6 +59,8 @@ class SystemAlerts(private val ctx: Context) : IslandModule {
     private var screenRecCb: Consumer<Int>? = null
     private val receivers = ArrayList<BroadcastReceiver>()
 
+    init { VirtualVolume.refresh = { stream -> showVolume(stream) } }
+
     private var camActive = false
     private var camPackage: String? = null
     private var micActive = false
@@ -285,7 +287,11 @@ class SystemAlerts(private val ctx: Context) : IslandModule {
         a.title = streamLabel(stream)
         a.accent = col
         a.icon = { IconDrawable(if (muted && stream == AudioManager.STREAM_RING) Icon.BELL else ic, col) }
-        a.volume = VolumeInfo(level, max, muted) { v -> am.setStreamVolume(stream, v, 0) }
+        a.volume = VolumeInfo(muted, VirtualVolume.shown(stream, level, max)) { pct ->
+            val target = Math.round(pct * max / 100f).coerceIn(0, max)
+            VirtualVolume.remember(stream, target, pct)
+            am.setStreamVolume(stream, target, 0)
+        }
         a.transientMs = 2200
         a.presentation = Presentation.BANNER
         a.anim = Alerts.anim(ctx, AlertType.VOLUME)

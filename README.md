@@ -27,6 +27,7 @@ A small black pill around your front camera that shows what's happening on your 
 - **Two things at once.** When two activities are live, a second small pill splits off beside the first. Tap it and the pills trade places.
 - **Fluid animations.** The island drops into the camera and comes back out like a water drop, expands on a soft spring, and swaps pills in three beats.
 - **Private by design.** The app **never asks for the internet permission**. Nothing leaves your phone, and there is no analytics.
+- **Settings with a live preview.** The settings app keeps a real, working copy of the island at the top of every screen, so every change to the shape, colour or position shows at once. Tap it to try music, a message, charging, volume or a timer.
 - **Highly configurable.** Every gesture, every alert's icon / colour / animation, the shape and colour of the pill, schedules, per-app rules, and more.
 
 ## What it shows
@@ -46,14 +47,16 @@ A small black pill around your front camera that shows what's happening on your 
 
 <table>
   <tr>
-    <td><img src="docs/images/store/03-notification-peek.png" width="230" alt="Notifications at a glance"></td>
-    <td><img src="docs/images/store/04-double-pill.png" width="230" alt="Two pills at once"></td>
-    <td><img src="docs/images/store/05-system-alerts.png" width="230" alt="System alerts"></td>
+    <td><img src="docs/images/store/01-music-player.png" width="230" alt="Music player on the island"></td>
+    <td><img src="docs/images/store/02-notification-peek.png" width="230" alt="Notifications at a glance"></td>
+    <td><img src="docs/images/store/03-double-pill.png" width="230" alt="Two things at once"></td>
+    <td><img src="docs/images/store/04-charging.png" width="230" alt="Charging alert"></td>
   </tr>
   <tr>
-    <td><img src="docs/images/store/06-gestures.png" width="230" alt="Gestures"></td>
-    <td><img src="docs/images/store/07-appearance.png" width="230" alt="Appearance"></td>
-    <td><img src="docs/images/store/08-home.png" width="230" alt="Home"></td>
+    <td><img src="docs/images/store/05-look.png" width="230" alt="Design the island with a live preview"></td>
+    <td><img src="docs/images/store/06-activities.png" width="230" alt="Choose what the island shows"></td>
+    <td><img src="docs/images/store/07-music-settings.png" width="230" alt="Preview every activity"></td>
+    <td><img src="docs/images/store/08-alerts-settings.png" width="230" alt="Make every alert yours"></td>
   </tr>
 </table>
 

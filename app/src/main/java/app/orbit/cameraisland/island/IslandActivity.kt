@@ -40,7 +40,8 @@ class ActionButton(
 
 class ReplyAction(val hint: CharSequence, val send: (String) -> Unit)
 
-class VolumeInfo(val level: Int, val max: Int, val muted: Boolean, val setLevel: (Int) -> Unit)
+/** [percent] is the 0-100 value in 5% steps shown on the bar; [setPercent] maps a chosen percentage onto the real volume. */
+class VolumeInfo(val muted: Boolean, val percent: Int, val setPercent: (Int) -> Unit)
 
 /**
  * One thing the island can show. Providers create/update these and hand them to

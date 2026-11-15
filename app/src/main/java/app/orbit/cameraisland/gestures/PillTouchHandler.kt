@@ -79,7 +79,7 @@ class PillTouchHandler(
     /** Springs the pill back out of its pressed state. */
     private fun release(v: View) {
         v.animate().cancel()
-        v.animate().scaleX(1f).scaleY(1f).setDuration(180).setInterpolator(OvershootInterpolator(2.2f)).start()
+        v.animate().scaleX(1f).scaleY(1f).setDuration(180).setInterpolator(DecelerateInterpolator(1.5f)).start()
     }
 
     private fun tap() {

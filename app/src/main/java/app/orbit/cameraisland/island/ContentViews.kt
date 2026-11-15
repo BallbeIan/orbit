@@ -67,11 +67,10 @@ class CollapsedView(ctx: Context) : LinearLayout(ctx) {
         gravity = Gravity.CENTER_VERTICAL
         lead.scaleType = ImageView.ScaleType.CENTER_CROP
         roundClip(lead, 0f, oval = true)
-        addView(lead, LayoutParams(ctx.dpi(24), ctx.dpi(24)))
+        addView(lead, LayoutParams(ctx.dpi(26), ctx.dpi(26)))
         addView(View(ctx), LayoutParams(0, 1, 1f))
-        styleText(timer, 13f, Color.WHITE, bold = true)
-        timer.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        styleText(label, 12f, Color.WHITE, bold = true)
+        Type.number(timer, 14f)
+        Type.title(label, 13f)
         label.maxWidth = ctx.dpi(64)
         dot.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) }
         trailingHost.addView(wave, FrameLayout.LayoutParams(ctx.dpi(20), ctx.dpi(14), Gravity.CENTER))
@@ -84,6 +83,15 @@ class CollapsedView(ctx: Context) : LinearLayout(ctx) {
     }
 
     fun bind(a: IslandActivity, accent: Int, indicatorDots: List<Int>) {
+        // glyphs sit in an accent-tinted disc, app icons / art stay full-bleed: same rule as the banner and expanded views
+        if (a.isGlyph) {
+            lead.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(tint(accent, 90)) }
+            lead.scaleType = ImageView.ScaleType.FIT_CENTER
+            val pd = context.dpi(5); lead.setPadding(pd, pd, pd, pd)
+        } else {
+            roundClip(lead, 0f, oval = true); lead.scaleType = ImageView.ScaleType.CENTER_CROP; lead.setPadding(0, 0, 0, 0)
+        }
+        lead.outlineProvider = android.view.ViewOutlineProvider.BACKGROUND; lead.clipToOutline = true
         lead.setImageDrawable(iconOf(a))
         lead.visibility = if (a.type == ActivityType.IDLE) INVISIBLE else VISIBLE
         bindTrailing(a, accent, indicatorDots)
@@ -121,137 +129,107 @@ class CollapsedView(ctx: Context) : LinearLayout(ctx) {
 }
 
 /**
- * The row level with the camera: [app logo] [camera gap] [name / status]. Both sides get the same width so the
- * camera stays in the middle of the pill; the logo sits at the far left of the pill, the name is centred
- * between the camera and the right edge.
+ * Banner (alerts, peeks, volume). The strip beside the camera is left clear; icon and text sit together in one row
+ * below it: [icon] title / message ... value. For volume the middle of the row is the slider instead.
  */
-class CameraStrip(ctx: Context) : android.view.ViewGroup(ctx) {
-    val icon = ImageView(ctx)
-    val title = TextView(ctx)
-    private val left = FrameLayout(ctx)
-    private val right = FrameLayout(ctx)
-    private var gap = ctx.dpi(14)
-    private var stripH = ctx.dpi(36)
-
-    init {
-        icon.scaleType = ImageView.ScaleType.CENTER_CROP
-        roundClip(icon, 0f, oval = true)
-        left.addView(icon, FrameLayout.LayoutParams(ctx.dpi(26), ctx.dpi(26), Gravity.START or Gravity.CENTER_VERTICAL))
-        styleText(title, 14f, Color.WHITE, bold = true)
-        title.isSingleLine = true
-        title.ellipsize = TextUtils.TruncateAt.END
-        right.addView(title, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
-        right.setPadding(ctx.dpi(6), 0, ctx.dpi(6), 0)
-        addView(left); addView(right)
-    }
-
-    /** [half]: half the camera cutout width in px (0 = none known); [height]: strip height in px. */
-    fun setCamera(half: Int, height: Int) {
-        val g = if (half > 0) 2 * half + context.dpi(8) else context.dpi(14)
-        val h = max(height, context.dpi(30))
-        if (g == gap && h == stripH) return
-        gap = g; stripH = h
-        requestLayout()
-    }
-
-    override fun onMeasure(wSpec: Int, hSpec: Int) {
-        val mode = MeasureSpec.getMode(wSpec)
-        val size = MeasureSpec.getSize(wSpec)
-        val avail = if (mode == MeasureSpec.UNSPECIFIED) 4096 else size
-        val sideMax = max(0, (avail - gap) / 2)
-        val hs = MeasureSpec.makeMeasureSpec(stripH, MeasureSpec.EXACTLY)
-        left.measure(MeasureSpec.makeMeasureSpec(sideMax, MeasureSpec.AT_MOST), hs)
-        right.measure(MeasureSpec.makeMeasureSpec(sideMax, MeasureSpec.AT_MOST), hs)
-        var side = max(left.measuredWidth, right.measuredWidth)
-        if (mode == MeasureSpec.EXACTLY) side = sideMax
-        val sw = MeasureSpec.makeMeasureSpec(side, MeasureSpec.EXACTLY)
-        left.measure(sw, hs); right.measure(sw, hs)
-        setMeasuredDimension(if (mode == MeasureSpec.EXACTLY) size else 2 * side + gap, stripH)
-    }
-
-    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-        val side = left.measuredWidth
-        val x0 = (r - l - (2 * side + gap)) / 2
-        left.layout(x0, 0, x0 + side, b - t)
-        right.layout(x0 + side + gap, 0, x0 + 2 * side + gap, b - t)
-    }
-}
-
-/** Banner: [icon] title / subtitle, plus an inline slider for volume. */
 class BannerView(ctx: Context) : LinearLayout(ctx) {
-    private val strip = CameraStrip(ctx)
-    val icon get() = strip.icon
+    private val spacer = View(ctx)
+    val icon = ImageView(ctx)
+    private val title = TextView(ctx)
     private val sub = TextView(ctx)
     private val value = TextView(ctx)
     private val seek = SeekBar(ctx)
-    private val seekRow = LinearLayout(ctx)
-    private val infoRow = LinearLayout(ctx)
+    private val texts = LinearLayout(ctx)
+    private val row = LinearLayout(ctx)
     private var volume: VolumeInfo? = null
 
     init {
         orientation = VERTICAL
-        setPadding(ctx.dpi(16), ctx.dpi(2), ctx.dpi(16), ctx.dpi(12))
-        addView(strip, LayoutParams(-1, -2))
+        setPadding(ctx.dpi(18), 0, ctx.dpi(18), ctx.dpi(16))
+        addView(spacer, LayoutParams(-1, ctx.dpi(30)))
 
-        // below the camera: the details (message text, volume level...)
-        infoRow.orientation = HORIZONTAL
-        infoRow.gravity = Gravity.CENTER_VERTICAL
-        styleText(sub, 13f, GRAY_TEXT)
+        row.orientation = HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
+        row.addView(icon, LayoutParams(ctx.dpi(40), ctx.dpi(40)))
+
+        texts.orientation = VERTICAL
+        Type.title(title, 16f)
+        Type.body(sub)
+        sub.isSingleLine = false
         sub.maxLines = 2
-        sub.ellipsize = TextUtils.TruncateAt.END
-        sub.gravity = Gravity.CENTER_HORIZONTAL
-        infoRow.addView(sub, LayoutParams(0, -2, 1f))
-        styleText(value, 14f, Color.WHITE, bold = true)
-        infoRow.addView(value, LayoutParams(-2, -2).apply { marginStart = ctx.dpi(8) })
-        addView(infoRow, LayoutParams(-1, -2).apply { topMargin = ctx.dpi(2) })
+        texts.addView(title)
+        texts.addView(sub, LayoutParams(-2, -2).apply { topMargin = ctx.dpi(1) })
+        row.addView(texts, LayoutParams(0, -2, 1f).apply { marginStart = ctx.dpi(12) })
 
-        seekRow.orientation = HORIZONTAL
-        seekRow.gravity = Gravity.CENTER_VERTICAL
-        seek.progressBackgroundTintList = ColorStateList.valueOf(Color.argb(70, 255, 255, 255))
-        seek.thumbTintList = ColorStateList.valueOf(Color.WHITE)
+        slimBar(ctx, seek, 10f, 0f)
+        seek.setPadding(0, ctx.dpi(8), 0, ctx.dpi(8))
+        seek.progressBackgroundTintList = ColorStateList.valueOf(Color.argb(56, 255, 255, 255))
         seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
                 if (!fromUser) return
-                volume?.setLevel(p)
-                value.text = pct(p, seek.max)
+                volume?.setPercent(p * 5)
+                value.text = "${p * 5}%"
                 IslandController.touchTransient()
             }
             override fun onStartTrackingTouch(s: SeekBar?) {}
             override fun onStopTrackingTouch(s: SeekBar?) {}
         })
-        seekRow.addView(seek, LayoutParams(0, -2, 1f))
-        addView(seekRow, LayoutParams(-1, -2).apply { topMargin = ctx.dpi(4) })
+        row.addView(seek, LayoutParams(0, -2, 1f).apply { marginStart = ctx.dpi(12) })
+
+        Type.number(value, 15f)
+        value.minWidth = ctx.dpi(40)
+        value.gravity = Gravity.END
+        row.addView(value, LayoutParams(-2, -2).apply { marginStart = ctx.dpi(10) })
+        addView(row, LayoutParams(-1, -2))
     }
 
-    /** Lines the top row up with the camera: [half] = half the cutout width, [inset] = space down to below the camera. */
-    fun setCamera(half: Int, inset: Int) = strip.setCamera(half, inset - context.dpi(6))
+    /** [inset] = space down to below the camera; the first row of content starts there. */
+    fun setCamera(@Suppress("UNUSED_PARAMETER") half: Int, inset: Int) {
+        val h = maxOf(inset - context.dpi(6), context.dpi(12))
+        if ((spacer.layoutParams as LayoutParams).height != h) {
+            spacer.layoutParams = LayoutParams(-1, h); requestLayout()
+        }
+    }
 
-    private fun pct(p: Int, max: Int) = if (max <= 0) "" else "${(p * 100f / max).toInt()}%"
+    /** Natural width: icon + the wider of title and message (capped) + value. */
+    override fun onMeasure(w: Int, h: Int) {
+        if (MeasureSpec.getMode(w) == MeasureSpec.UNSPECIFIED) {
+            val tw = maxOf(title.paint.measureText(title.text.toString()), sub.paint.measureText(sub.text.toString()))
+            val textW = minOf(tw.toInt() + context.dpi(6), context.dpi(230))
+            val valueW = if (value.visibility == VISIBLE) context.dpi(50) else 0
+            val want = context.dpi(40) + context.dpi(12) + textW + valueW + paddingLeft + paddingRight
+            super.onMeasure(MeasureSpec.makeMeasureSpec(want, MeasureSpec.EXACTLY), h)
+        } else super.onMeasure(w, h)
+    }
 
     fun bind(a: IslandActivity, accent: Int) {
-        strip.icon.setImageDrawable(iconOf(a))
-        strip.title.text = a.title
+        styleIconTile(icon, a, accent, 40)
+        icon.setImageDrawable(iconOf(a))
+        title.text = a.title
         sub.text = a.subtitle
         val v = a.volume
         volume = v
         if (a.kind == Kind.VOLUME && v != null) {
-            seekRow.visibility = VISIBLE
-            seek.max = v.max
-            seek.progress = v.level
-            seek.progressTintList = ColorStateList.valueOf(accent)
+            texts.visibility = GONE
+            seek.visibility = VISIBLE
+            seek.max = 20                 // the bar moves in the same 5% steps as the number
+            seek.progress = v.percent / 5
+            seek.progressTintList = ColorStateList.valueOf(Color.WHITE)
             value.visibility = VISIBLE
-            value.text = if (v.muted) "Muted" else pct(v.level, v.max)
-            sub.visibility = if (a.subtitle.isEmpty()) GONE else VISIBLE
+            value.text = if (v.muted) "Muted" else "${v.percent}%"
         } else {
-            seekRow.visibility = GONE
+            texts.visibility = VISIBLE
+            seek.visibility = GONE
             value.visibility = GONE
             sub.visibility = if (a.subtitle.isEmpty()) GONE else VISIBLE
         }
-        infoRow.visibility = if (sub.visibility == GONE && value.visibility == GONE) GONE else VISIBLE
     }
 }
 
-/** Expanded player: art, title/artist, draggable progress, transport controls. */
+/**
+ * Expanded player. Art-forward: a large rounded cover whose colour also tints the island, title / artist beside it,
+ * a thin progress bar with elapsed and remaining time underneath, and bare transport glyphs with a soft disc on play.
+ */
 class MediaExpandedView(ctx: Context) : LinearLayout(ctx) {
     val header = LinearLayout(ctx)
     private val art = ImageView(ctx)
@@ -259,48 +237,47 @@ class MediaExpandedView(ctx: Context) : LinearLayout(ctx) {
     private val artist = TextView(ctx)
     private val wave = WaveView(ctx)
     private val elapsed = TextView(ctx)
-    private val duration = TextView(ctx)
+    private val remaining = TextView(ctx)
     private val seek = SeekBar(ctx)
-    private val progressRow = LinearLayout(ctx)
+    private val progressBox = LinearLayout(ctx)
     private val prev = ImageButton(ctx)
     private val play = ImageButton(ctx)
     private val next = ImageButton(ctx)
     private var info: MediaInfo? = null
     private var dragging = false
     private var shownPlaying: Boolean? = null
+    private var accentNow = Color.WHITE
 
     init {
         orientation = VERTICAL
-        setPadding(ctx.dpi(18), ctx.dpi(16), ctx.dpi(18), ctx.dpi(8))
+        setPadding(ctx.dpi(20), ctx.dpi(16), ctx.dpi(20), ctx.dpi(10))
         header.orientation = HORIZONTAL
         header.gravity = Gravity.CENTER_VERTICAL
         art.scaleType = ImageView.ScaleType.CENTER_CROP
-        roundClip(art, ctx.dp(12f))
-        header.addView(art, LayoutParams(ctx.dpi(56), ctx.dpi(56)))
+        roundClip(art, ctx.dp(16f))
+        header.addView(art, LayoutParams(ctx.dpi(68), ctx.dpi(68)))
         val texts = LinearLayout(ctx).apply { orientation = VERTICAL }
-        styleText(title, 15f, Color.WHITE, bold = true)
+        Type.title(title, 18f)
         title.ellipsize = TextUtils.TruncateAt.MARQUEE
         title.marqueeRepeatLimit = -1
         title.isSelected = true
-        styleText(artist, 13f, GRAY_TEXT)
-        texts.addView(title); texts.addView(artist)
+        Type.body(artist, 15f)
+        texts.addView(title); texts.addView(artist, LayoutParams(-2, -2).apply { topMargin = ctx.dpi(2) })
         header.addView(texts, LayoutParams(0, -2, 1f).apply { marginStart = ctx.dpi(14); marginEnd = ctx.dpi(10) })
-        header.addView(wave, LayoutParams(ctx.dpi(24), ctx.dpi(18)))
+        header.addView(wave, LayoutParams(ctx.dpi(26), ctx.dpi(20)))
         addView(header)
 
-        progressRow.orientation = HORIZONTAL
-        progressRow.gravity = Gravity.CENTER_VERTICAL
-        styleText(elapsed, 11f, GRAY_TEXT)
-        styleText(duration, 11f, GRAY_TEXT)
+        progressBox.orientation = VERTICAL
+        Type.caption(elapsed); Type.caption(remaining)
+        slimBar(ctx, seek, 5f, 12f)
         seek.max = 1000
-        seek.progressBackgroundTintList = ColorStateList.valueOf(Color.argb(60, 255, 255, 255))
+        seek.progressBackgroundTintList = ColorStateList.valueOf(Color.argb(56, 255, 255, 255))
         seek.thumbTintList = ColorStateList.valueOf(Color.WHITE)
-        seek.splitTrack = false
-        seek.setPadding(ctx.dpi(8), 0, ctx.dpi(8), 0)
+        seek.setPadding(ctx.dpi(6), ctx.dpi(10), ctx.dpi(6), ctx.dpi(4))
         seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
                 val m = info ?: return
-                if (fromUser) elapsed.text = fmtClock(m.duration * p / 1000)
+                if (fromUser) { elapsed.text = fmtClock(m.duration * p / 1000); remaining.text = "-" + fmtClock(m.duration - m.duration * p / 1000) }
             }
             override fun onStartTrackingTouch(s: SeekBar?) { dragging = true }
             override fun onStopTrackingTouch(s: SeekBar?) {
@@ -309,34 +286,35 @@ class MediaExpandedView(ctx: Context) : LinearLayout(ctx) {
                 IslandController.seekMedia(m.duration * (s?.progress ?: 0) / 1000)
             }
         })
-        progressRow.addView(elapsed)
-        progressRow.addView(seek, LayoutParams(0, -2, 1f))
-        progressRow.addView(duration)
-        addView(progressRow, LayoutParams(-1, -2).apply { topMargin = ctx.dpi(10) })
+        progressBox.addView(seek, LayoutParams(-1, -2))
+        val times = LinearLayout(ctx).apply { orientation = HORIZONTAL; setPadding(ctx.dpi(6), 0, ctx.dpi(6), 0) }
+        times.addView(elapsed, LayoutParams(0, -2, 1f))
+        times.addView(remaining)
+        progressBox.addView(times, LayoutParams(-1, -2).apply { topMargin = -ctx.dpi(2) })
+        addView(progressBox, LayoutParams(-1, -2).apply { topMargin = ctx.dpi(12) })
 
         val controls = LinearLayout(ctx).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER }
         prev.setImageDrawable(IconDrawable(Icon.PREVIOUS, Color.WHITE))
         next.setImageDrawable(IconDrawable(Icon.NEXT, Color.WHITE))
-        play.setImageDrawable(IconDrawable(Icon.PLAY, Color.BLACK))
-        controls.addView(prev, control(prev, 46, filled = false) { IslandController.mediaPrevious() })
-        controls.addView(play, control(play, 58, filled = true) { IslandController.mediaPlayPause() })
-        controls.addView(next, control(next, 46, filled = false) { IslandController.mediaNext() })
-        addView(controls, LayoutParams(-1, -2).apply { topMargin = ctx.dpi(2) })
+        play.setImageDrawable(IconDrawable(Icon.PLAY, Color.WHITE))
+        controls.addView(prev, control(prev, 56, 0.22f, disc = false) { IslandController.mediaPrevious() })
+        controls.addView(play, control(play, 68, 0.2f, disc = true) { IslandController.mediaPlayPause() })
+        controls.addView(next, control(next, 56, 0.22f, disc = false) { IslandController.mediaNext() })
+        addView(controls, LayoutParams(-1, -2).apply { topMargin = ctx.dpi(4) })
     }
 
-    fun setTopInset(px: Int) = setPadding(context.dpi(18), context.dpi(16) + px, context.dpi(18), context.dpi(8))
+    fun setTopInset(px: Int) = setPadding(context.dpi(20), context.dpi(16) + px, context.dpi(20), context.dpi(10))
 
-    /** A round button in the same style as the other buttons: translucent, or a solid white disc for play / pause. */
-    private fun control(b: ImageButton, sizeDp: Int, filled: Boolean, onClick: () -> Unit): LayoutParams {
-        val disc = GradientDrawable().apply {
+    private fun control(b: ImageButton, sizeDp: Int, padFrac: Float, disc: Boolean, onClick: () -> Unit): LayoutParams {
+        val face = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(if (filled) Color.WHITE else Color.argb(46, 255, 255, 255))
+            setColor(if (disc) Color.argb(36, 255, 255, 255) else Color.TRANSPARENT)
         }
-        // The mask must be round too; a rectangular mask makes the press highlight flash as a square.
+        // round mask, or the press highlight flashes as a square
         val mask = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) }
-        b.background = RippleDrawable(ColorStateList.valueOf(Color.argb(70, 128, 128, 128)), disc, mask)
+        b.background = RippleDrawable(ColorStateList.valueOf(Color.argb(60, 255, 255, 255)), face, mask)
         b.scaleType = ImageView.ScaleType.FIT_CENTER
-        val pad = context.dpi((sizeDp * 0.27f).toInt())
+        val pad = context.dpi((sizeDp * padFrac).toInt())
         b.setPadding(pad, pad, pad, pad)
         b.setOnClickListener { onClick() }
         return LayoutParams(context.dpi(sizeDp), context.dpi(sizeDp)).apply {
@@ -347,16 +325,17 @@ class MediaExpandedView(ctx: Context) : LinearLayout(ctx) {
     fun bind(a: IslandActivity, accent: Int) {
         val m = a.media ?: return
         info = m
+        accentNow = accent
         art.setImageDrawable(iconOf(a))
         wave.barColor = accent
         wave.playing = m.playing
-        seek.progressTintList = ColorStateList.valueOf(accent)
+        seek.progressTintList = ColorStateList.valueOf(Color.WHITE)
         if (title.text.toString() != m.title) title.text = m.title
         artist.text = m.artist
         artist.visibility = if (m.artist.isEmpty()) GONE else VISIBLE
         if (shownPlaying != m.playing) {
             shownPlaying = m.playing
-            play.setImageDrawable(IconDrawable(if (m.playing) Icon.PAUSE else Icon.PLAY, Color.BLACK))
+            play.setImageDrawable(IconDrawable(if (m.playing) Icon.PAUSE else Icon.PLAY, Color.WHITE))
         }
         val a2 = if (m.live) 1f else 0.35f
         prev.alpha = a2; next.alpha = a2
@@ -367,20 +346,25 @@ class MediaExpandedView(ctx: Context) : LinearLayout(ctx) {
 
     fun tick() {
         val m = info ?: return
-        if (m.duration <= 0) { progressRow.visibility = INVISIBLE; return }
-        progressRow.visibility = VISIBLE
+        if (m.duration <= 0) { progressBox.visibility = INVISIBLE; return }
+        progressBox.visibility = VISIBLE
         if (dragging) return
         val pos = m.currentPosition()
         seek.progress = ((pos * 1000) / m.duration).toInt()
         elapsed.text = fmtClock(pos)
-        duration.text = fmtClock(m.duration)
+        remaining.text = "-" + fmtClock(m.duration - pos)
     }
 }
 
-/** Expanded view for everything else: header, optional progress, action buttons, inline reply. */
+/**
+ * Expanded view for everything else: header row with the app, details, a big timer / ring when there is one, a thin
+ * progress bar, capsule buttons tinted with the accent (solid for call actions), and a glass reply field.
+ */
 class GenericExpandedView(ctx: Context, private val onWantKeyboard: () -> Unit, private val onDoneTyping: () -> Unit) : LinearLayout(ctx) {
     val header = LinearLayout(ctx)
-    private val strip = CameraStrip(ctx)
+    private val spacer = View(ctx)
+    private val icon = ImageView(ctx)
+    private val title = TextView(ctx)
     private val sub = TextView(ctx)
     private val timer = TextView(ctx)
     private val ring = RingView(ctx)
@@ -389,64 +373,74 @@ class GenericExpandedView(ctx: Context, private val onWantKeyboard: () -> Unit, 
     private val buttons = LinearLayout(ctx)
     private val replyRow = LinearLayout(ctx)
     private val replyField = EditText(ctx)
-    private val replySend = TextView(ctx)
+    private val replySend = ImageButton(ctx)
     private var timerSpec: Trailing.Timer? = null
     private var reply: ReplyAction? = null
+    private var accentNow = Color.WHITE
 
     init {
         orientation = VERTICAL
-        setPadding(ctx.dpi(16), ctx.dpi(2), ctx.dpi(16), ctx.dpi(12))
-        addView(strip, LayoutParams(-1, -2))
+        setPadding(ctx.dpi(18), 0, ctx.dpi(18), ctx.dpi(16))
+        addView(spacer, LayoutParams(-1, ctx.dpi(30)))
         header.orientation = HORIZONTAL
         header.gravity = Gravity.CENTER_VERTICAL
         header.isClickable = true
-        styleText(sub, 13f, GRAY_TEXT)
+        // icon and text together in one row below the camera, the live value (timer / ring / label) on the right
+        header.addView(icon, LayoutParams(ctx.dpi(44), ctx.dpi(44)))
+        val texts = LinearLayout(ctx).apply { orientation = VERTICAL }
+        Type.title(title, 17f)
+        Type.body(sub, 15f)
         sub.isSingleLine = false
         sub.maxLines = 3
         sub.ellipsize = TextUtils.TruncateAt.END
-        header.addView(sub, LayoutParams(0, -2, 1f).apply { marginEnd = ctx.dpi(8) })
-        styleText(timer, 22f, Color.WHITE, bold = true)
-        styleText(label, 14f, Color.WHITE, bold = true)
+        texts.addView(title)
+        texts.addView(sub, LayoutParams(-2, -2).apply { topMargin = ctx.dpi(1) })
+        header.addView(texts, LayoutParams(0, -2, 1f).apply { marginStart = ctx.dpi(12); marginEnd = ctx.dpi(8) })
+        Type.number(timer, 30f)
+        Type.title(label, 15f)
         label.maxWidth = ctx.dpi(100)
         header.addView(timer); header.addView(label)
-        header.addView(ring, LayoutParams(ctx.dpi(34), ctx.dpi(34)))
-        addView(header, LayoutParams(-1, -2).apply { topMargin = ctx.dpi(2) })
+        header.addView(ring, LayoutParams(ctx.dpi(36), ctx.dpi(36)))
+        addView(header, LayoutParams(-1, -2))
 
         bar.max = 1000
-        bar.progressBackgroundTintList = ColorStateList.valueOf(Color.argb(60, 255, 255, 255))
-        addView(bar, LayoutParams(-1, ctx.dpi(6)).apply { topMargin = ctx.dpi(10) })
+        slimBar(ctx, bar, 5f)
+        bar.progressBackgroundTintList = ColorStateList.valueOf(Color.argb(56, 255, 255, 255))
+        addView(bar, LayoutParams(-1, ctx.dpi(6)).apply { topMargin = ctx.dpi(14) })
 
         buttons.orientation = HORIZONTAL
         buttons.gravity = Gravity.CENTER
-        addView(buttons, LayoutParams(-1, -2).apply { topMargin = ctx.dpi(12) })
+        addView(buttons, LayoutParams(-1, -2).apply { topMargin = ctx.dpi(14) })
 
         replyRow.orientation = HORIZONTAL
         replyRow.gravity = Gravity.CENTER_VERTICAL
         replyField.setTextColor(Color.WHITE)
-        replyField.setHintTextColor(GRAY_TEXT)
-        replyField.textSize = 14f
+        replyField.setHintTextColor(WHITE_50)
+        replyField.textSize = 15f
         replyField.isSingleLine = true
         replyField.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         replyField.imeOptions = EditorInfo.IME_ACTION_SEND
-        replyField.setPadding(ctx.dpi(14), 0, ctx.dpi(14), 0)
-        replyField.background = GradientDrawable().apply { cornerRadius = ctx.dp(20f); setColor(Color.argb(40, 255, 255, 255)) }
+        replyField.setPadding(ctx.dpi(16), 0, ctx.dpi(16), 0)
+        replyField.background = glassShape(ctx, Color.argb(30, 255, 255, 255))
         // Overlay windows are not focusable by default; ask for focus the moment the field is touched.
         replyField.setOnTouchListener { _, e ->
             if (e.action == MotionEvent.ACTION_DOWN) onWantKeyboard()
             false
         }
         replyField.setOnEditorActionListener { _, id, _ -> if (id == EditorInfo.IME_ACTION_SEND) { sendReply(); true } else false }
-        styleText(replySend, 14f, Color.WHITE, bold = true)
-        replySend.text = "Send"
-        replySend.gravity = Gravity.CENTER
-        replySend.background = GradientDrawable().apply { cornerRadius = ctx.dp(20f); setColor(Color.rgb(10, 132, 255)) }
+        replySend.setImageDrawable(IconDrawable(Icon.SEND, Color.WHITE))
+        replySend.scaleType = ImageView.ScaleType.FIT_CENTER
+        replySend.setPadding(ctx.dpi(10), ctx.dpi(10), ctx.dpi(10), ctx.dpi(10))
         replySend.setOnClickListener { sendReply() }
-        replyRow.addView(replyField, LayoutParams(0, ctx.dpi(40), 1f))
-        replyRow.addView(replySend, LayoutParams(ctx.dpi(64), ctx.dpi(40)).apply { marginStart = ctx.dpi(8) })
-        addView(replyRow, LayoutParams(-1, -2).apply { topMargin = ctx.dpi(10) })
+        replyRow.addView(replyField, LayoutParams(0, ctx.dpi(44), 1f))
+        replyRow.addView(replySend, LayoutParams(ctx.dpi(44), ctx.dpi(44)).apply { marginStart = ctx.dpi(8) })
+        addView(replyRow, LayoutParams(-1, -2).apply { topMargin = ctx.dpi(12) })
     }
 
-    fun setCamera(half: Int, inset: Int) = strip.setCamera(half, inset - context.dpi(6))
+    fun setCamera(@Suppress("UNUSED_PARAMETER") half: Int, inset: Int) {
+        val h = maxOf(inset - context.dpi(6), context.dpi(12))
+        if ((spacer.layoutParams as LayoutParams).height != h) { spacer.layoutParams = LayoutParams(-1, h); requestLayout() }
+    }
 
     private fun sendReply() {
         val text = replyField.text.toString().trim()
@@ -459,12 +453,13 @@ class GenericExpandedView(ctx: Context, private val onWantKeyboard: () -> Unit, 
     }
 
     fun bind(a: IslandActivity, accent: Int) {
-        strip.icon.setImageDrawable(iconOf(a))
-        strip.title.text = a.title
+        accentNow = accent
+        styleIconTile(icon, a, accent, 44)
+        icon.setImageDrawable(iconOf(a))
+        title.text = a.title
         sub.text = a.subtitle
         sub.visibility = if (a.subtitle.isEmpty()) GONE else VISIBLE
         header.setOnClickListener { IslandController.open(a) }
-        strip.setOnClickListener { IslandController.open(a) }
         for (v in listOf<View>(timer, ring, label)) v.visibility = GONE
         timerSpec = null
         when (val t = a.trailing) {
@@ -484,23 +479,26 @@ class GenericExpandedView(ctx: Context, private val onWantKeyboard: () -> Unit, 
         // many buttons, or long labels such as "Headphones" / a Bluetooth name: use the compact style so nothing is cut
         val compact = a.buttons.size > 3 || a.buttons.any { it.label.length > 9 }
         a.buttons.forEachIndexed { i, b ->
-            buttons.addView(makeButton(b, compact), LayoutParams(0, context.dpi(if (compact) 38 else 44), 1f).apply {
+            buttons.addView(makeButton(b, compact), LayoutParams(0, context.dpi(if (compact) 40 else 46), 1f).apply {
                 if (i > 0) marginStart = context.dpi(8)
             })
         }
         reply = a.reply
         replyRow.visibility = if (a.reply == null) GONE else VISIBLE
         replyField.hint = a.reply?.hint ?: ""
+        replySend.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(vivid(accent)) }
     }
 
+    /** Neutral actions are capsules tinted with the accent; actions with their own colour (answer / decline) are solid. */
     private fun makeButton(b: ActionButton, compact: Boolean): TextView {
-        val bg = if (b.color == 0) Color.argb(46, 255, 255, 255) else b.color
+        val fill = if (b.color == 0) tint(accentNow, 64) else b.color
         return TextView(context).apply {
             text = b.label
-            styleText(this, if (compact) 12f else 14f, Color.WHITE, bold = true)
+            Type.title(this, if (compact) 13f else 15f)
             gravity = Gravity.CENTER
-            setPadding(context.dpi(8), 0, context.dpi(8), 0)
-            background = GradientDrawable().apply { cornerRadius = context.dp(22f); setColor(bg) }
+            setPadding(context.dpi(10), 0, context.dpi(10), 0)
+            background = RippleDrawable(ColorStateList.valueOf(Color.argb(60, 255, 255, 255)),
+                glassShape(context, fill, 100f, edge = b.color == 0), null)
             b.icon?.invoke()?.let {
                 val s = context.dpi(18)
                 it.setBounds(0, 0, s, s)

@@ -23,6 +23,7 @@ enum class Icon(val key: String, val label: String, val inPicker: Boolean = true
     CHECK("check", "Check mark"),
     // used by the settings UI only
     PALETTE("palette", "Palette", false), MUSIC("music", "Music note", false), TOUCH("touch", "Touch", false),
+    SLIDERS("sliders", "Sliders", false), EYE("eye", "Eye", false), WAVEFORM("waveform", "Waveform", false), GEAR("gear", "Gear", false), SEND("send", "Send", false), EXCLAIM("exclaim", "Exclamation", false),
     PLAY("play", "Play", false), PAUSE("pause", "Pause", false), PREVIOUS("previous", "Previous", false), NEXT("next", "Next", false);
 
     companion object { fun from(key: String?, def: Icon) = values().firstOrNull { it.key == key } ?: def }
@@ -30,7 +31,7 @@ enum class Icon(val key: String, val label: String, val inPicker: Boolean = true
 
 class IconDrawable(private val icon: Icon, private val color: Int = Color.WHITE) : Drawable() {
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE; strokeWidth = 2f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+        style = Paint.Style.STROKE; strokeWidth = 1.8f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val path = Path()
@@ -133,9 +134,40 @@ class IconDrawable(private val icon: Icon, private val color: Int = Color.WHITE)
                 c.drawCircle(16f, 10f, 1.5f, fill); c.drawCircle(8.5f, 15f, 1.5f, fill)
             }
             Icon.MUSIC -> {
-                r.set(5.5f, 15f, 12f, 20.5f); c.drawOval(r, fill)
-                c.drawLine(12f, 18f, 12f, 4.5f, stroke); poly(c, stroke, 12f, 4.5f, 18.5f, 7.5f)
+                c.drawCircle(7.2f, 17.6f, 2.7f, fill); c.drawCircle(16.2f, 15.6f, 2.7f, fill)
+                c.drawLine(9.9f, 17.6f, 9.9f, 6.4f, stroke); c.drawLine(18.9f, 15.6f, 18.9f, 4.4f, stroke)
+                val w = stroke.strokeWidth; stroke.strokeWidth = 2.8f; c.drawLine(9.9f, 6.2f, 18.9f, 4.2f, stroke); stroke.strokeWidth = w
             }
+            Icon.SLIDERS -> {
+                c.drawLine(4f, 7f, 20f, 7f, stroke); c.drawLine(4f, 17f, 20f, 17f, stroke)
+                c.drawCircle(15f, 7f, 2.6f, fill); c.drawCircle(9f, 17f, 2.6f, fill)
+            }
+            Icon.WAVEFORM -> {
+                val w = stroke.strokeWidth; stroke.strokeWidth = 2.4f
+                val bars = floatArrayOf(4f, 8f, 12f, 16f, 20f); val hs = floatArrayOf(3f, 7f, 10f, 5f, 2f)
+                for (i in bars.indices) c.drawLine(bars[i], 12f - hs[i], bars[i], 12f + hs[i], stroke)
+                stroke.strokeWidth = w
+            }
+            Icon.SEND -> {
+                val w = stroke.strokeWidth; stroke.strokeWidth = 2.4f
+                c.drawLine(12f, 19f, 12f, 6f, stroke); poly(c, stroke, 6.5f, 11.5f, 12f, 6f, 17.5f, 11.5f)
+                stroke.strokeWidth = w
+            }
+            Icon.GEAR -> {
+                c.drawCircle(12f, 12f, 3.3f, stroke)
+                for (i in 0 until 8) {
+                    val a = Math.toRadians(i * 45.0); val x = Math.cos(a).toFloat(); val y = Math.sin(a).toFloat()
+                    c.drawLine(12f + x * 6.6f, 12f + y * 6.6f, 12f + x * 9.6f, 12f + y * 9.6f, stroke)
+                }
+                c.drawCircle(12f, 12f, 6.6f, stroke)
+            }
+            Icon.EYE -> {
+                path.reset(); path.moveTo(2.5f, 12f); path.cubicTo(5f, 7.2f, 8.4f, 5.6f, 12f, 5.6f)
+                path.cubicTo(15.6f, 5.6f, 19f, 7.2f, 21.5f, 12f); path.cubicTo(19f, 16.8f, 15.6f, 18.4f, 12f, 18.4f)
+                path.cubicTo(8.4f, 18.4f, 5f, 16.8f, 2.5f, 12f); path.close(); c.drawPath(path, stroke)
+                c.drawCircle(12f, 12f, 2.9f, fill)
+            }
+            Icon.EXCLAIM -> { c.drawLine(12f, 5f, 12f, 13.5f, stroke); c.drawCircle(12f, 18f, 1.4f, fill) }
             Icon.PLAY -> rounded(c, 8.5f, 5.5f, 8.5f, 18.5f, 18.5f, 12f)
             Icon.PAUSE -> {
                 r.set(7f, 5.5f, 10.5f, 18.5f); c.drawRoundRect(r, 1.4f, 1.4f, fill)

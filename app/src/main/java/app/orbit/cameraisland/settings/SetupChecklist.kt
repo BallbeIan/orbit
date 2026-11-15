@@ -2,7 +2,6 @@ package app.orbit.cameraisland.settings
 
 import android.Manifest
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -18,6 +17,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import app.orbit.cameraisland.IslandAccessibilityService
+import app.orbit.cameraisland.island.Icon
+import app.orbit.cameraisland.island.IconDrawable
 import app.orbit.cameraisland.island.dp
 
 /**
@@ -46,6 +47,9 @@ class SetupChecklist(private val ui: UiKit) {
             val flat = Settings.Secure.getString(a.contentResolver, "enabled_notification_listeners") ?: return false
             return flat.split(":").any { ComponentName.unflattenFromString(it)?.packageName == a.packageName }
         }
+        /** True while the island cannot work yet: notification access is missing, or nothing lets it draw on screen. */
+        fun needsAttention(a: Activity) = !listenerEnabled(a) || !(accessibilityEnabled(a) || Settings.canDrawOverlays(a))
+
         fun accessibilityEnabled(a: Activity): Boolean {
             if (IslandAccessibilityService.instance != null) return true
             val flat = Settings.Secure.getString(a.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: return false
@@ -65,17 +69,20 @@ class SetupChecklist(private val ui: UiKit) {
 
     /** Prominent disclosure (a Google Play requirement for sensitive access): the user must agree before we open the system screen. */
     private fun disclose(title: String, message: String, proceed: () -> Unit) {
-        AlertDialog.Builder(act).setTitle(title).setMessage(message)
-            .setPositiveButton("Agree and continue") { _, _ -> proceed() }
-            .setNegativeButton("Not now", null)
-            .show()
+        Ui.confirm(act, title, message, "Agree and continue", "Not now", proceed)
     }
 
     private fun runtime(vararg perms: String) = { act.requestPermissions(perms, REQ_RUNTIME) }
     private fun has(p: String) = act.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
-    private fun dot(color: Int, sizeDp: Int = 10) = View(act).apply {
-        background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color) }
+    /** Round status glyph: a tick when fine, "!" when something is missing, an empty ring for optional items. */
+    private fun statusBadge(sizeDp: Int) = ImageView(act).apply {
+        background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Ui.TEXT2) }
+        val p = ui.dpi((sizeDp * 0.24f).toInt()); setPadding(p, p, p, p)
         layoutParams = LinearLayout.LayoutParams(ui.dpi(sizeDp), ui.dpi(sizeDp))
+    }
+    private fun setStatus(v: View, color: Int, ok: Boolean?) {
+        (v.background as GradientDrawable).setColor(color)
+        (v as ImageView).setImageDrawable(when (ok) { true -> IconDrawable(Icon.CHECK, Color.WHITE); false -> IconDrawable(Icon.EXCLAIM, Color.WHITE); null -> null })
     }
 
     fun build() {
@@ -120,9 +127,9 @@ class SetupChecklist(private val ui: UiKit) {
             { has(Manifest.permission.ANSWER_PHONE_CALLS) }, runtime(Manifest.permission.ANSWER_PHONE_CALLS))
 
         // header row (tap to expand / collapse)
-        headerDot = dot(Ui.WARN, 12)
-        headerTitle = Ui.text(act, 16f, Ui.TEXT, medium = true).apply { text = "Permissions" }
-        headerSummary = Ui.text(act, 13f, Ui.TEXT2)
+        headerDot = statusBadge(30)
+        headerTitle = Ui.text(act, 17f, Ui.TEXT, medium = true).apply { text = "Permissions" }
+        headerSummary = Ui.text(act, 13f, Ui.TEXT2).apply { setPadding(0, ui.dpi(2), 0, 0) }
         headerChevron = Ui.chevron(act)
         val texts = LinearLayout(act).apply {
             orientation = LinearLayout.VERTICAL
@@ -131,8 +138,8 @@ class SetupChecklist(private val ui: UiKit) {
         val header = LinearLayout(act).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = ui.dpi(64)
-            setPadding(ui.dpi(16), ui.dpi(10), ui.dpi(12), ui.dpi(10))
+            minimumHeight = ui.dpi(60)
+            setPadding(ui.dpi(16), ui.dpi(10), ui.dpi(14), ui.dpi(10))
             background = Ui.ripple(null)
             isClickable = true
             addView(headerDot)
@@ -147,15 +154,15 @@ class SetupChecklist(private val ui: UiKit) {
             if (!it.show()) continue
             list.addView(View(act).apply { setBackgroundColor(Ui.DIVIDER) },
                 LinearLayout.LayoutParams(-1, 1).apply { marginStart = ui.dpi(16) })
-            it.dot = dot(Ui.TEXT2)
-            val label = Ui.text(act, 15f, Ui.TEXT).apply { text = it.label + if (it.required) "" else "  ·  optional" }
-            val why = Ui.text(act, 12f, Ui.TEXT2).apply { text = it.why; setPadding(0, ui.dpi(2), 0, 0) }
-            it.grantBtn = Ui.text(act, 13f, Ui.ACCENT, medium = true).apply {
+            it.dot = statusBadge(24)
+            val label = Ui.text(act, 16f, Ui.TEXT).apply { text = it.label + if (it.required) "" else "  ·  Optional" }
+            val why = Ui.text(act, 13f, Ui.TEXT2).apply { text = it.why; setPadding(0, ui.dpi(2), 0, 0) }
+            it.grantBtn = Ui.text(act, 14f, Ui.ACCENT, medium = true).apply {
                 text = "Grant"
                 gravity = Gravity.CENTER
-                setPadding(ui.dpi(14), ui.dpi(7), ui.dpi(14), ui.dpi(7))
+                setPadding(ui.dpi(16), ui.dpi(7), ui.dpi(16), ui.dpi(7))
                 background = GradientDrawable().apply {
-                    cornerRadius = act.dp(20f); setColor(Color.argb(30, 124, 140, 255)); setStroke(1, Ui.ACCENT)
+                    cornerRadius = act.dp(20f); setColor(Color.argb(38, Color.red(Ui.ACCENT), Color.green(Ui.ACCENT), Color.blue(Ui.ACCENT)))
                 }
                 setOnClickListener { _ -> it.grant() }
             }
@@ -163,7 +170,7 @@ class SetupChecklist(private val ui: UiKit) {
             it.row = LinearLayout(act).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(ui.dpi(16), ui.dpi(10), ui.dpi(14), ui.dpi(10))
+                setPadding(ui.dpi(16), ui.dpi(11), ui.dpi(14), ui.dpi(11))
                 addView(it.dot)
                 addView(texts2, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dpi(14); marginEnd = ui.dpi(10) })
                 addView(it.grantBtn)
@@ -174,12 +181,12 @@ class SetupChecklist(private val ui: UiKit) {
         restricted = LinearLayout(act).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(ui.dpi(16), ui.dpi(12), ui.dpi(16), ui.dpi(14))
-            setBackgroundColor(Color.argb(24, 251, 191, 36))
+            setBackgroundColor(Color.argb(28, Color.red(Ui.WARN), Color.green(Ui.WARN), Color.blue(Ui.WARN)))
             addView(Ui.text(act, 13f, Ui.WARN).apply {
                 text = "Notification access or Accessibility greyed out (\"Restricted setting\")? Open App info → ⋮ menu → Allow restricted settings, then try again."
                 setLineSpacing(0f, 1.15f)
             })
-            addView(Ui.text(act, 14f, Ui.ACCENT, medium = true).apply {
+            addView(Ui.text(act, 15f, Ui.ACCENT, medium = true).apply {
                 text = "Open app info"
                 setPadding(0, ui.dpi(10), 0, 0)
                 setOnClickListener {
@@ -193,7 +200,7 @@ class SetupChecklist(private val ui: UiKit) {
 
     private fun applyExpanded() {
         list.visibility = if (expanded) View.VISIBLE else View.GONE
-        headerChevron.rotation = if (expanded) 90f else 0f
+        headerChevron.animate().rotation(if (expanded) 90f else 0f).setDuration(150).start()
     }
 
     fun refresh() {
@@ -201,7 +208,7 @@ class SetupChecklist(private val ui: UiKit) {
         for (it in items) {
             if (!it.show()) continue
             val g = it.granted()
-            (it.dot.background as GradientDrawable).setColor(if (g) Ui.OK else if (it.required) Ui.BAD else Ui.TEXT2)
+            setStatus(it.dot, if (g) Ui.OK else if (it.required) Ui.BAD else Ui.SLIDER_TRACK, if (g) true else if (it.required) false else null)
             it.grantBtn.visibility = if (g) View.GONE else View.VISIBLE
             if (it.required && !g) requiredOk = false
         }
@@ -218,7 +225,7 @@ class SetupChecklist(private val ui: UiKit) {
         }
         headerTitle.text = title
         headerSummary.text = summary
-        (headerDot.background as GradientDrawable).setColor(color)
+        setStatus(headerDot, color, if (color == Ui.OK) true else false)
         if (!userToggled) expanded = !allOk
         applyExpanded()
     }

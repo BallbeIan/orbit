@@ -1,7 +1,6 @@
 package app.orbit.cameraisland.settings
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.Drawable
@@ -59,14 +58,19 @@ class AppListActivity : Activity() {
         gravity = Gravity.CENTER_VERTICAL
         setPadding(dpi(16), dpi(10), dpi(16), dpi(10))
         background = Ui.ripple(null)
-        addView(ImageView(this@AppListActivity), LinearLayout.LayoutParams(dpi(42), dpi(42)))
+        addView(ImageView(this@AppListActivity).apply {
+            outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(v: View, o: android.graphics.Outline) = o.setRoundRect(0, 0, v.width, v.height, v.width * 0.23f)
+            }
+            clipToOutline = true
+        }, LinearLayout.LayoutParams(dpi(42), dpi(42)))
         val t = LinearLayout(this@AppListActivity).apply {
             orientation = LinearLayout.VERTICAL
-            addView(Ui.text(this@AppListActivity, 16f, Ui.TEXT).apply { isSingleLine = true })
+            addView(Ui.text(this@AppListActivity, 17f, Ui.TEXT).apply { isSingleLine = true })
             addView(Ui.text(this@AppListActivity, 11f, Ui.TEXT2).apply { isSingleLine = true })
         }
         addView(t, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dpi(14); marginEnd = dpi(8) })
-        addView(Ui.text(this@AppListActivity, 13f, Ui.ACCENT, medium = true))
+        addView(Ui.text(this@AppListActivity, 15f, Ui.ACCENT))
     }
 
     private fun multiSet() = prefs.getStringSet(key, emptySet()) ?: emptySet()
@@ -85,9 +89,10 @@ class AppListActivity : Activity() {
         kind = intent.getStringExtra("kind") ?: "modes"
         key = intent.getStringExtra("key") ?: ""
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Ui.BG) }
-        col.addView(Ui.topBar(this, intent.getStringExtra("title") ?: "Apps"))
+        col.addView(Ui.topBar(this))
+        col.addView(Ui.largeTitle(this, intent.getStringExtra("title") ?: "Apps").apply { setPadding(dpi(22), dpi(4), dpi(22), dpi(8)) })
         intent.getStringExtra("hint")?.let {
-            col.addView(Ui.text(this, 13f, Ui.TEXT2).apply { text = it; setLineSpacing(0f, 1.15f); setPadding(dpi(20), 0, dpi(20), dpi(10)) })
+            col.addView(Ui.text(this, 13f, Ui.TEXT2).apply { text = it; setLineSpacing(0f, 1.12f); setPadding(dpi(22), 0, dpi(22), dpi(10)) })
         }
         val search = EditText(this).apply {
             hint = "Search apps"; setHintTextColor(Ui.TEXT2); setTextColor(Ui.TEXT); isSingleLine = true
@@ -134,12 +139,11 @@ class AppListActivity : Activity() {
             "modes" -> {
                 val opts = listOf("auto" to "Auto (smart)", "peek" to "Peek only", "live" to "Live activity", "off" to "Off")
                 val cur = prefs.getString(Prefs.APP_MODE_PREFIX + app.pkg, "auto")
-                AlertDialog.Builder(this).setTitle(app.label)
-                    .setSingleChoiceItems(opts.map { it.second }.toTypedArray(), opts.indexOfFirst { it.first == cur }) { d, i ->
-                        val e = prefs.edit()
-                        if (opts[i].first == "auto") e.remove(Prefs.APP_MODE_PREFIX + app.pkg) else e.putString(Prefs.APP_MODE_PREFIX + app.pkg, opts[i].first)
-                        e.apply(); adapter.notifyDataSetChanged(); d.dismiss()
-                    }.show()
+                Ui.sheet(this, app.label, opts.map { it.second }, opts.indexOfFirst { it.first == cur }) { i ->
+                    val e = prefs.edit()
+                    if (opts[i].first == "auto") e.remove(Prefs.APP_MODE_PREFIX + app.pkg) else e.putString(Prefs.APP_MODE_PREFIX + app.pkg, opts[i].first)
+                    e.apply(); adapter.notifyDataSetChanged()
+                }
             }
             "multi" -> {
                 val s = HashSet(multiSet())

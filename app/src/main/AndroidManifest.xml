@@ -43,11 +43,6 @@
         </activity>
 
         <activity
-            android:name=".settings.SectionActivity"
-            android:exported="false"
-            android:parentActivityName=".MainActivity" />
-
-        <activity
             android:name=".settings.AppListActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity" />

@@ -2,8 +2,6 @@ package app.orbit.cameraisland.settings
 
 object AppearanceScreen {
     fun build(ui: UiKit) {
-        ui.raw(PillPreview(ui.act), 8)
-
         if (ScreenProfile.foldable(ui.act)) {
             ui.section("Screen")
             ui.note("Editing the ${ScreenProfile.label(ui.act)}. On a foldable these settings are saved separately for each screen: fold or unfold the phone and open Island there to change the other screen.")

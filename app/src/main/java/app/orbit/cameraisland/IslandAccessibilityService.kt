@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.media.AudioManager
+import app.orbit.cameraisland.alerts.VirtualVolume
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityWindowInfo
@@ -40,9 +41,28 @@ class IslandAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * One volume-key press moves the volume by 5% of the stream's range (at least one system step). Calls use the call
+     * volume, everything else the media volume. While the phone is ringing Android's own behaviour (silence the
+     * ringer) is kept.
+     */
     private fun adjustVolume(dir: Int) {
-        getSystemService(AudioManager::class.java)
-            .adjustSuggestedStreamVolume(dir, AudioManager.USE_DEFAULT_STREAM_TYPE, 0)
+        val am = getSystemService(AudioManager::class.java)
+        if (am.mode == AudioManager.MODE_RINGTONE) {
+            am.adjustSuggestedStreamVolume(dir, AudioManager.USE_DEFAULT_STREAM_TYPE, 0)
+            return
+        }
+        val stream = if (am.mode == AudioManager.MODE_IN_CALL || am.mode == AudioManager.MODE_IN_COMMUNICATION)
+            AudioManager.STREAM_VOICE_CALL else AudioManager.STREAM_MUSIC
+        val max = am.getStreamMaxVolume(stream)
+        val level = am.getStreamVolume(stream)
+        // work in clean 5% steps; several percentages can share one real step, so remember the percentage itself
+        val now = VirtualVolume.shown(stream, level, max)
+        val pct = (if (dir == AudioManager.ADJUST_RAISE) now + 5 else now - 5).coerceIn(0, 100)
+        val next = Math.round(pct * max / 100f).coerceIn(0, max)
+        VirtualVolume.remember(stream, next, pct)
+        if (next != level) am.setStreamVolume(stream, next, 0)
+        else VirtualVolume.refresh?.invoke(stream)   // the real level did not move, so no system broadcast: show the new number ourselves
     }
 
     private fun stopRepeat() {

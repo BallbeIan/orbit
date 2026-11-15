@@ -117,13 +117,35 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
     private var curRt = 0
 
     // ---- Views ----
-    private val root = FrameLayout(ctx)
+    /**
+     * The window is sometimes narrower than the row for a moment (overshoot, the second pill leaving). The default
+     * would squeeze the row to the window width and push the pill to one side, cutting it off; here the row is measured
+     * at its natural size and centred, so any overflow is symmetric.
+     */
+    private val root = object : FrameLayout(ctx) {
+        override fun onMeasure(widthSpec: Int, heightSpec: Int) {
+            val unspecified = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+            var w = 0; var h = 0
+            for (i in 0 until childCount) {
+                val c = getChildAt(i)
+                if (c.visibility == View.GONE) continue
+                val lp = c.layoutParams
+                c.measure(getChildMeasureSpec(unspecified, 0, lp.width), getChildMeasureSpec(unspecified, 0, lp.height))
+                w = max(w, c.measuredWidth); h = max(h, c.measuredHeight)
+            }
+            // resolveSizeAndState, not resolveSize: Android first measures a wrap-content window at ~320dp and only retries
+            // wider if the root reports "too small". resolveSize drops that flag, which clipped every wide view at 840px.
+            setMeasuredDimension(resolveSizeAndState(w + paddingLeft + paddingRight, widthSpec, 0),
+                resolveSizeAndState(h + paddingTop + paddingBottom, heightSpec, 0))
+        }
+    }
     private val row = LinearLayout(ctx)
     private val leftSlot = FrameLayout(ctx)
     private val rightSlot = FrameLayout(ctx)
     private val leftSec = SecondaryPill(ctx)
     private val rightSec = SecondaryPill(ctx)
     private val pill = FrameLayout(ctx)
+    private val aura = AuraView(ctx)
     private val pillBg = GradientDrawable().apply { setColor(Color.BLACK) }
     private val collapsed = CollapsedView(ctx)
     /** Off-screen twin used only to measure how wide another activity's collapsed pill would be. */
@@ -147,6 +169,22 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
             else WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
         title = windowTitle
+        noMoveAnimation(this)
+    }
+
+    /**
+     * The system animates a window whenever its frame changes (here: whenever its width changes), and during that
+     * animation the content is drawn from the old edge, so the pill visibly slides in from one side. Ask the system
+     * not to animate position changes for this window. The flag is hidden API, so this is best effort: if it is not
+     * available the island still works, it just keeps the old slide.
+     */
+    private fun noMoveAnimation(lp: WindowManager.LayoutParams) {
+        try {
+            val flagField = WindowManager.LayoutParams::class.java.getField("PRIVATE_FLAG_NO_MOVE_ANIMATION")
+            val flag = flagField.getInt(null)
+            val f = WindowManager.LayoutParams::class.java.getField("privateFlags")
+            f.setInt(lp, f.getInt(lp) or flag)
+        } catch (_: Throwable) {}
     }
 
     private val params = overlayParams(BASE_FLAGS, "Island")
@@ -248,6 +286,7 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
         val h = pillHeight()
         val d = dropSize()
         val fw = curW; val fh = curH; val fr = curR; val fl = curL; val frt = curRt
+        holdWindow(fw + fl + frt, fh)
         anim = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 320
             interpolator = AccelerateDecelerateInterpolator()
@@ -263,14 +302,18 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
                 val a = (1f - f * 2.2f).coerceIn(0f, 1f)
                 collapsed.alpha = a; expandedHost.alpha = a; banner.alpha = a
                 leftSec.alpha = a; rightSec.alpha = a
+                // the glow and the hairline edge go with the content, otherwise a tinted ring is left around the camera
+                aura.alpha = (1f - f * 6f).coerceIn(0f, 1f)
             }
             addListener(object : AnimatorListenerAdapter() {
                 private var cancelled = false
                 override fun onAnimationCancel(an: Animator) { cancelled = true }
                 override fun onAnimationEnd(an: Animator) {
                     if (cancelled) return
-                    // the drop slips into the camera
-                    pill.animate().scaleX(0f).scaleY(0f).setDuration(120).withEndAction { onEnd() }.start()
+                    // The drop is camera-sized and solid black. The system only draws its own camera circle once no
+                    // window covers it, so hold the drop for a moment and remove it in one step: the hand-over is then
+                    // invisible. (Shrinking or fading it first showed the bare wallpaper and then popped the camera in.)
+                    handler.postDelayed({ onEnd() }, 50)
                 }
             })
             start()
@@ -284,7 +327,7 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
         applyTouchable()
         if (s) {
             if (!attached || mode == Mode.HIDDEN || hiding) { root.visibility = View.INVISIBLE; return }
-            dropOut { if (suppressed) root.visibility = View.INVISIBLE }
+            dropOut { if (suppressed) root.visibility = View.INVISIBLE; releaseWindow() }
         } else {
             root.visibility = View.VISIBLE
             resetPillTransform()
@@ -302,12 +345,14 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
     fun noteSwap() { swapPending = true }
 
     /** The stand-in used while a pill travels: shape + icon only, sized exactly like the real views. */
-    private inner class Ghost(icon: Drawable?) : FrameLayout(ctx) {
+    private inner class Ghost(icon: Drawable?, accent: Int) : FrameLayout(ctx) {
         private val bg = GradientDrawable()
+        private val glow = AuraView(ctx).apply { intensity = 0.28f; setAccent(accent, false) }
         private val iconView = ImageView(ctx)
 
         init {
             background = bg
+            addView(glow, LayoutParams(-1, -1))
             bg.setColor(bgColor())
             val stroke = strokeColor(primary)
             bg.setStroke(if (stroke != 0) ctx.dpi(2) else 0, stroke)
@@ -326,6 +371,7 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
             layoutParams = LayoutParams(w, hh, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = max(0, (full - hh) / 2) }
             translationX = centerOffset
             bg.cornerRadius = min(w, hh) / 2f * roundness()
+            glow.radius = bg.cornerRadius
             val circleIcon = max(ctx.dpi(10), min(hh, full) - ctx.dpi(14))
             val size = (circleIcon + (ctx.dpi(24) - circleIcon) * k).roundToInt()
             iconView.layoutParams = LayoutParams(size, size, Gravity.START or Gravity.CENTER_VERTICAL)
@@ -379,9 +425,9 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
             leftSec.alpha = 0f; rightSec.alpha = 0f
             var bound = false
 
-            val ghostA = Ghost(oldP.icon?.invoke())      // old main pill  -> shrinks into the small pill
-            val ghostB = Ghost(oldS.icon?.invoke())      // old small pill -> shrinks away and disappears
-            val ghostC = Ghost(p.icon?.invoke())         // new main pill  -> spreads out of the camera
+            val ghostA = Ghost(oldP.icon?.invoke(), accentOf(oldP))      // old main pill  -> shrinks into the small pill
+            val ghostB = Ghost(oldS.icon?.invoke(), accentOf(oldS))      // old small pill -> shrinks away and disappears
+            val ghostC = Ghost(p.icon?.invoke(), accentOf(p))         // new main pill  -> spreads out of the camera
             val drop = dropSize()
             val sideOff = secOffset(finalW)
             ghostA.place(oldW, h, 0f, 1f); ghostA.alpha = 0f
@@ -602,12 +648,14 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
             pill.animate().cancel()
             resetPillTransform()
         }
-        if (!attach()) return
+        if (!attach(forAnimation = true)) return
         applyAppearance()
 
         val prev = mode
-        val p = primary ?: return
+        val p = primary ?: run { releaseWindow(); return }
         mode = m
+        aura.fadeIntensity(if (p.type == ActivityType.IDLE) 0f else if (m == Mode.COLLAPSED) 0.28f else 0.36f,
+            animate = prev != Mode.HIDDEN && !hiding)
         if (prev == Mode.EXPANDED && m != Mode.EXPANDED) setFocusable(false)
         if (prev != m) {
             IslandController.onOverlayExpanded(p.id, m == Mode.EXPANDED, byUser)
@@ -654,6 +702,8 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
         val tr = radiusFor(m, h)
 
         anim?.cancel()
+        // keep the window steady for the whole morph: big enough for both the start and the end shape
+        holdWindow(max(curW + curL + curRt, tw + tl + tr2), max(curH, th))
         // Apple-style: a soft spring where the leading dimension (width when opening, height when closing)
         // gets ahead and the other follows a beat later. Appearing from the camera keeps its own overshoot.
         val opening = th >= fh
@@ -667,12 +717,15 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
                 val fSlot: Float
                 if (fromHidden) { fW = t; fH = t; fSlot = min(t, 1f) }
                 else {
-                    val lead = SPRING.getInterpolation(t)
-                    val lag = SPRING.getInterpolation(((t - 0.08f) / 0.92f).coerceIn(0f, 1f))
+                    // opening gets the soft spring; closing eases out with no overshoot, so it never bounces
+                    val curve: TimeInterpolator = if (opening) SPRING else EASE_OUT
+                    val lead = curve.getInterpolation(t)
+                    val lag = curve.getInterpolation(((t - 0.08f) / 0.92f).coerceIn(0f, 1f))
                     fW = if (opening) lead else lag
                     fH = if (opening) lag else lead
                     fSlot = min(lead, 1f)
                 }
+                if (fromHidden) aura.alpha = ((t - 0.35f) / 0.65f).coerceIn(0f, 1f)
                 curW = max(1, (fw + (tw - fw) * fW).roundToInt())
                 curH = max(1, (fh + (th - fh) * fH).roundToInt())
                 curR = max(0f, fr + (tr - fr) * min(fH, 1f))
@@ -680,6 +733,12 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
                 curRt = max(0, (frt + (tr2 - frt) * fSlot).roundToInt())
                 applyGeometry(h)
             }
+            addListener(object : AnimatorListenerAdapter() {
+                private var cancelled = false
+                override fun onAnimationCancel(an: Animator) { cancelled = true }
+                // a cancelled morph is replaced by a new one that holds the window itself
+                override fun onAnimationEnd(an: Animator) { if (!cancelled) releaseWindow() }
+            })
             start()
         }
         updateSlotVisibility(showSec, left)
@@ -693,12 +752,41 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
     private fun applyGeometry(h: Int) {
         resize(pill, curW, curH).topMargin = max(0, (h - curH) / 2)
         pillBg.cornerRadius = curR
+        aura.radius = curR
         pill.invalidateOutline()
         resize(leftSlot, curL, h)
         resize(rightSlot, curRt, h)
+        // While an animation runs the window is held at a fixed size (see holdWindow), so nothing to resize here.
+        if (windowHeld) return
         // near a screen edge the window slides inwards as the pill grows, so it never runs off-screen
         val nx = targetX(curW + curL + curRt + 2 * glowPad())
         if (attached && nx != params.x) { params.x = nx; try { wm.updateViewLayout(root, params) } catch (_: Exception) {} }
+    }
+
+    // The window is normally wrap-content. Resizing it on every animation frame made the content draw anchored to the
+    // old window edge for a frame (the pill drifted to one side while it shrank, then slid back). So for the length
+    // of an animation the window is held at the largest size the animation needs and the pill is centred inside it;
+    // afterwards it goes back to wrap-content, which changes nothing visible.
+    private var windowHeld = false
+
+    private fun holdWindow(contentW: Int, contentH: Int) {
+        if (!attached) return
+        windowHeld = true
+        val pad = 2 * glowPad()
+        // headroom: the opening spring overshoots the final size by a few percent, and the window must contain that
+        params.width = (contentW * OVERSHOOT_ROOM).toInt() + pad
+        params.height = (max(contentH, pillHeight()) * OVERSHOOT_ROOM).toInt() + pad
+        params.x = targetX(params.width)
+        try { wm.updateViewLayout(root, params) } catch (_: Exception) {}
+    }
+
+    private fun releaseWindow() {
+        if (!windowHeld) return
+        windowHeld = false
+        params.width = WindowManager.LayoutParams.WRAP_CONTENT
+        params.height = WindowManager.LayoutParams.WRAP_CONTENT
+        params.x = targetX(curW + curL + curRt + 2 * glowPad())
+        if (attached) try { wm.updateViewLayout(root, params) } catch (_: Exception) {}
     }
 
     /** Updates a row child's size in place (no new LayoutParams per animation frame) and requests a layout. */
@@ -899,11 +987,20 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
         camTargetAttached = false
     }
 
-    private fun attach(): Boolean {
+    private fun attach(forAnimation: Boolean = false): Boolean {
         if (attached) return true
         if (!canAddWindow()) return false
         updateOffsetParams()
         applyTouchableFlag()
+        if (forAnimation) {
+            // A new window starts out the size of the tiny drop and only grows a couple of frames later, which cut the
+            // right side off the opening pill. So it is created big enough for any pill; setMode then sizes it exactly.
+            windowHeld = true
+            val pad = 2 * glowPad()
+            params.width = maxWidth(pillHeight(), withSecondary = true) + pad
+            params.height = ctx.dpi(300) + pad
+            params.x = targetX(params.width)
+        }
         return try {
             root.visibility = if (suppressed) View.INVISIBLE else View.VISIBLE
             wm.addView(root, params)
@@ -929,11 +1026,15 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
             try { wm.removeView(root) } catch (_: Exception) {}
             attached = false
         }
+        windowHeld = false
+        params.width = WindowManager.LayoutParams.WRAP_CONTENT
+        params.height = WindowManager.LayoutParams.WRAP_CONTENT
         params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
     }
 
     private fun resetPillTransform() {
         pill.scaleX = 1f; pill.scaleY = 1f; pill.alpha = 1f
+        aura.alpha = 1f
     }
 
     private fun applyTouchableFlag() {
@@ -990,6 +1091,7 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
         val accent = accentOf(p)
         val inset = topInset()
         banner.setCamera(cutoutHalf, inset); mediaExp.setTopInset(inset); genericExp.setCamera(cutoutHalf, inset)
+        aura.setAccent(accent, animate = attached && mode != Mode.HIDDEN && !hiding)
         collapsed.bind(p, accent, dots)
         banner.bind(p, accent)
         if (p.kind == Kind.MEDIA) mediaExp.bind(p, accent) else genericExp.bind(p, accent)
@@ -1038,6 +1140,7 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
         row.addView(rightSlot, LinearLayout.LayoutParams(0, ctx.dpi(36)))
 
         collapsed.setPadding(ctx.dpi(6), 0, ctx.dpi(12), 0)
+        pill.addView(aura, FrameLayout.LayoutParams(-1, -1))
         pill.addView(collapsed, FrameLayout.LayoutParams(-1, -1))
 
         expandedHost.addView(mediaExp, FrameLayout.LayoutParams(-1, -2))
@@ -1050,6 +1153,11 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
     }
 
     companion object {
+        private const val OVERSHOOT_ROOM = 1.16f
+
+        /** Smooth ease-out used when closing: no overshoot. */
+        private val EASE_OUT = android.view.animation.PathInterpolator(0.22f, 1f, 0.36f, 1f)
+
         /** Damped spring: quick start, one small overshoot (~4%), then settles. */
         private val SPRING = TimeInterpolator { t ->
             if (t >= 1f) 1f else (1.0 - Math.exp(-7.0 * t) * Math.cos(7.0 * t)).toFloat()

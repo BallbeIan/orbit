@@ -23,7 +23,7 @@ class RingView(context: Context) : View(context) {
         set(v) { field = v; arc.color = v; invalidate() }
 
     override fun onDraw(canvas: Canvas) {
-        val sw = width * 0.16f
+        val sw = width * 0.13f
         track.strokeWidth = sw; arc.strokeWidth = sw
         val inset = sw / 2f
         rect.set(inset, inset, width - inset, height - inset)

@@ -34,6 +34,14 @@ object IslandController : SharedPreferences.OnSharedPreferenceChangeListener {
     private val acts = LinkedHashMap<String, IslandActivity>()
     private val snoozed = HashSet<String>()
     private val expiry = HashMap<String, Runnable>()
+    /** How long each transient has actually been on screen as the main pill, and which ones ran out of time unseen. */
+    private val shownMs = HashMap<String, Long>()
+    private val waiting = HashSet<String>()
+    private var primarySinceId: String? = null
+    private var primarySince = 0L
+
+    private fun totalShown(id: String): Long =
+        (shownMs[id] ?: 0L) + if (primarySinceId == id) SystemClock.uptimeMillis() - primarySince else 0L
     private var pinned: String? = null
     private var announceId: String? = null
     private var expandedId: String? = null
@@ -126,7 +134,7 @@ object IslandController : SharedPreferences.OnSharedPreferenceChangeListener {
         try { app.unregisterReceiver(screenReceiver) } catch (_: Exception) {}
         prefs.unregisterOnSharedPreferenceChangeListener(this)
         overlay?.destroy(); overlay = null; overlayHost = null
-        acts.clear(); expiry.values.forEach { handler.removeCallbacks(it) }; expiry.clear()
+        acts.clear(); expiry.values.forEach { handler.removeCallbacks(it) }; expiry.clear(); shownMs.clear(); waiting.clear()
     }
 
     // ================= Activities =================
@@ -137,7 +145,7 @@ object IslandController : SharedPreferences.OnSharedPreferenceChangeListener {
         val existing = acts[a.id]
         a.postedAt = if (existing != null && !announce) existing.postedAt else System.currentTimeMillis()
         acts[a.id] = a
-        if (announce) { snoozed.remove(a.id); announceId = a.id; wakeScreenFor(a) }
+        if (announce) { snoozed.remove(a.id); announceId = a.id; shownMs.remove(a.id); waiting.remove(a.id); wakeScreenFor(a) }
         scheduleExpiry(a)
         recompute()
     }
@@ -163,6 +171,7 @@ object IslandController : SharedPreferences.OnSharedPreferenceChangeListener {
         snoozed.remove(id)
         if (pinned == id) pinned = null
         expiry.remove(id)?.let { handler.removeCallbacks(it) }
+        shownMs.remove(id); waiting.remove(id)
         recompute()
     }
 
@@ -171,7 +180,7 @@ object IslandController : SharedPreferences.OnSharedPreferenceChangeListener {
     fun removeWhere(pred: (IslandActivity) -> Boolean) {
         if (Looper.myLooper() != Looper.getMainLooper()) { handler.post { removeWhere(pred) }; return }
         val ids = acts.values.filter(pred).map { it.id }
-        ids.forEach { acts.remove(it); snoozed.remove(it); expiry.remove(it)?.let { r -> handler.removeCallbacks(r) } }
+        ids.forEach { acts.remove(it); snoozed.remove(it); shownMs.remove(it); waiting.remove(it); expiry.remove(it)?.let { r -> handler.removeCallbacks(r) } }
         if (ids.isNotEmpty()) recompute()
     }
 
@@ -184,6 +193,16 @@ object IslandController : SharedPreferences.OnSharedPreferenceChangeListener {
             override fun run() {
                 if (expandedId == a.id) { handler.postDelayed(this, 3000); return }
                 expiry.remove(a.id)
+                // under ~1.5 s on screen = it was only the main pill for an instant (e.g. posted a moment before another)
+                if (totalShown(a.id) < 1500 && acts[a.id] === a) {
+                    // It never had its turn on screen (another alert was in front): don't swallow it. Keep it until it
+                    // becomes the main pill, which then starts a fresh, full timer. A generous cap stops a stuck queue.
+                    waiting.add(a.id)
+                    val cap = Runnable { if (waiting.remove(a.id)) remove(a.id) }
+                    expiry[a.id] = cap
+                    handler.postDelayed(cap, 20_000)
+                    return
+                }
                 remove(a.id)
             }
         }
@@ -286,6 +305,14 @@ object IslandController : SharedPreferences.OnSharedPreferenceChangeListener {
         if (p == null && prefs.getString(Prefs.SHOW_MODE, "activity") == "always") p = idle
         primaryId = p?.id
         secondaryId = s?.id
+        // bookkeeping for the queue: credit the previous main pill with the time it was shown
+        val nowMs = SystemClock.uptimeMillis()
+        if (primarySinceId != p?.id) {
+            primarySinceId?.let { shownMs[it] = (shownMs[it] ?: 0L) + (nowMs - primarySince) }
+            primarySinceId = p?.id; primarySince = nowMs
+        }
+        // an alert that waited in the queue gets its full time now that it is the main pill
+        if (p != null && waiting.remove(p.id)) { shownMs.remove(p.id); scheduleExpiry(p) }
         val dots = inds.filter { it.id != p?.id && it.id != s?.id }.map { (it.trailing as? Trailing.Dot)?.color ?: it.accent }
 
         o.setSuppressed(!visibleNow())
