@@ -16,6 +16,15 @@ A small black pill around your front camera that shows what's happening on your 
 
 <img src="docs/images/island-hero.jpg" alt="Orbit on a foldable phone: a music pill with album art and equaliser bars, a timer pill with a small music pill beside it, and a notification peek" width="760">
 
+<img src="docs/images/store/01-music-player.png" width="23%" alt="Orbit screenshot 1">
+<img src="docs/images/store/02-quick-reply.png" width="23%" alt="Orbit screenshot 2">
+<img src="docs/images/store/03-notification-peek.png" width="23%" alt="Orbit screenshot 3">
+<img src="docs/images/store/04-double-pill.png" width="23%" alt="Orbit screenshot 4">
+<img src="docs/images/store/05-system-alerts.png" width="23%" alt="Orbit screenshot 5">
+<img src="docs/images/store/06-gestures.png" width="23%" alt="Orbit screenshot 6">
+<img src="docs/images/store/07-appearance.png" width="23%" alt="Orbit screenshot 7">
+<img src="docs/images/store/08-home.png" width="23%" alt="Orbit screenshot 8">
+
 </div>
 
 ---
