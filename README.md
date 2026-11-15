@@ -14,14 +14,7 @@ A small black pill around your front camera that shows what's happening on your 
 
 **[Download the latest APK](https://github.com/BallbeIan/orbit/releases/latest)** and follow [Installing](#installing). A Google Play release is planned.
 
-<img src="docs/images/store/01-music-player.png" width="23%" alt="Orbit screenshot 1">
-<img src="docs/images/store/02-quick-reply.png" width="23%" alt="Orbit screenshot 2">
-<img src="docs/images/store/03-notification-peek.png" width="23%" alt="Orbit screenshot 3">
-<img src="docs/images/store/04-double-pill.png" width="23%" alt="Orbit screenshot 4">
-<img src="docs/images/store/05-system-alerts.png" width="23%" alt="Orbit screenshot 5">
-<img src="docs/images/store/06-gestures.png" width="23%" alt="Orbit screenshot 6">
-<img src="docs/images/store/07-appearance.png" width="23%" alt="Orbit screenshot 7">
-<img src="docs/images/store/08-home.png" width="23%" alt="Orbit screenshot 8">
+<img src="docs/images/store/feature-graphic.png" alt="Orbit: Dynamic Island, a live pill at your front camera for music, calls and alerts" width="760">
 
 </div>
 
@@ -48,6 +41,27 @@ A small black pill around your front camera that shows what's happening on your 
 | 🔔 **System alerts** | Wi-Fi, Bluetooth (with device name), hotspot, VPN, next alarm, volume slider, ringer mode, Do Not Disturb, plus airplane mode, NFC, mobile data, flashlight. Each with its own icon, colour and animation. |
 | 🔴 **Privacy dots** | Microphone, camera and screen recording indicators. |
 | 💬 **Notifications** | Short peeks with action buttons and inline reply. Choose per app: peek, live, or off. |
+
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="docs/images/store/03-notification-peek.png" width="230" alt="Notifications at a glance"></td>
+    <td><img src="docs/images/store/04-double-pill.png" width="230" alt="Two pills at once"></td>
+    <td><img src="docs/images/store/05-system-alerts.png" width="230" alt="System alerts"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/store/06-gestures.png" width="230" alt="Gestures"></td>
+    <td><img src="docs/images/store/07-appearance.png" width="230" alt="Appearance"></td>
+    <td><img src="docs/images/store/08-home.png" width="230" alt="Home"></td>
+  </tr>
+</table>
+
+<div align="center">
+<img src="docs/images/store/01-music-player.png" alt="The expanded music player: artwork, title, seek bar and transport controls" width="380">
+<img src="docs/images/store/02-quick-reply.png" alt="An expanded message with an inline reply field" width="380"><br>
+<sub>Expanded music player (seek, skip and pause) and an inline reply, right from the island.</sub>
+</div>
 
 ## Gestures
 
