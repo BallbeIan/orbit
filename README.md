@@ -14,8 +14,6 @@ A small black pill around your front camera that shows what's happening on your 
 
 **[Download the latest APK](https://github.com/BallbeIan/orbit/releases/latest)** and follow [Installing](#installing). A Google Play release is planned.
 
-<img src="docs/images/island-hero.jpg" alt="Orbit on a foldable phone: a music pill with album art and equaliser bars, a timer pill with a small music pill beside it, and a notification peek" width="760">
-
 <img src="docs/images/store/01-music-player.png" width="23%" alt="Orbit screenshot 1">
 <img src="docs/images/store/02-quick-reply.png" width="23%" alt="Orbit screenshot 2">
 <img src="docs/images/store/03-notification-peek.png" width="23%" alt="Orbit screenshot 3">
@@ -50,27 +48,6 @@ A small black pill around your front camera that shows what's happening on your 
 | 🔔 **System alerts** | Wi-Fi, Bluetooth (with device name), hotspot, VPN, next alarm, volume slider, ringer mode, Do Not Disturb, plus airplane mode, NFC, mobile data, flashlight. Each with its own icon, colour and animation. |
 | 🔴 **Privacy dots** | Microphone, camera and screen recording indicators. |
 | 💬 **Notifications** | Short peeks with action buttons and inline reply. Choose per app: peek, live, or off. |
-
-## Screenshots
-
-<table>
-  <tr>
-    <td><img src="docs/images/settings-home.png" width="230" alt="Home"></td>
-    <td><img src="docs/images/settings-appearance.png" width="230" alt="Appearance"></td>
-    <td><img src="docs/images/settings-live.png" width="230" alt="Live activities"></td>
-  </tr>
-  <tr>
-    <td><img src="docs/images/settings-alerts.png" width="230" alt="System alerts"></td>
-    <td><img src="docs/images/settings-gestures.png" width="230" alt="Gestures"></td>
-    <td><img src="docs/images/settings-visibility.png" width="230" alt="Visibility"></td>
-  </tr>
-</table>
-
-<div align="center">
-<img src="docs/images/island-expanded.jpg" alt="The expanded music player: artwork, title, seek bar and transport controls" width="380">
-<img src="docs/images/island-reply.jpg" alt="An expanded message with an inline reply field" width="380"><br>
-<sub>Expanded music player (seek, skip and pause) and an inline reply, right from the island. Content sits below the camera cut-out.</sub>
-</div>
 
 ## Gestures
 
