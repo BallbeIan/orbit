@@ -19,8 +19,8 @@ android {
         applicationId = "app.orbit.cameraisland"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "3.0"
+        versionCode = 8
+        versionName = "3.1"
     }
 
     signingConfigs {

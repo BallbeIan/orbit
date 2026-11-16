@@ -286,7 +286,7 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
         val h = pillHeight()
         val d = dropSize()
         val fw = curW; val fh = curH; val fr = curR; val fl = curL; val frt = curRt
-        holdWindow(fw + fl + frt, fh)
+        holdWindow(fw + fl + frt, d, fh)
         anim = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 320
             interpolator = AccelerateDecelerateInterpolator()
@@ -526,7 +526,7 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
 
     fun updateOffset() {
         params.y = windowY()
-        params.x = targetX(curW + curL + curRt + 2 * glowPad())
+        if (!windowHeld) params.x = targetX(curW + curL + curRt + 2 * glowPad())
         if (attached) try { wm.updateViewLayout(root, params) } catch (_: Exception) {}
     }
 
@@ -703,7 +703,7 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
 
         anim?.cancel()
         // keep the window steady for the whole morph: big enough for both the start and the end shape
-        holdWindow(max(curW + curL + curRt, tw + tl + tr2), max(curH, th))
+        holdWindow(curW + curL + curRt, tw + tl + tr2, max(curH, th))
         // Apple-style: a soft spring where the leading dimension (width when opening, height when closing)
         // gets ahead and the other follows a beat later. Appearing from the camera keeps its own overshoot.
         val opening = th >= fh
@@ -757,7 +757,10 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
         resize(leftSlot, curL, h)
         resize(rightSlot, curRt, h)
         // While an animation runs the window is held at a fixed size (see holdWindow), so nothing to resize here.
-        if (windowHeld) return
+        if (windowHeld) {
+            row.translationX = (targetX(curW + curL + curRt + 2 * glowPad()) - holdCenter).toFloat()
+            return
+        }
         // near a screen edge the window slides inwards as the pill grows, so it never runs off-screen
         val nx = targetX(curW + curL + curRt + 2 * glowPad())
         if (attached && nx != params.x) { params.x = nx; try { wm.updateViewLayout(root, params) } catch (_: Exception) {} }
@@ -769,14 +772,31 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
     // afterwards it goes back to wrap-content, which changes nothing visible.
     private var windowHeld = false
 
-    private fun holdWindow(contentW: Int, contentH: Int) {
+    /** x offset (from the screen centre) of the held window's centre; the row is moved inside the window around it. */
+    private var holdCenter = 0
+
+    /**
+     * Holds the window at a fixed size for an animation. Near a screen edge (e.g. an under-display camera at the right
+     * of a foldable's inner screen) the pill slides inward as it widens (see [targetX]). The window therefore covers
+     * both where the pill is now and where it will end up, and the row is moved inside it, frame by frame, to follow that
+     * slide. The window itself never moves, so nothing jumps when it is released.
+     */
+    private fun holdWindow(curTotal: Int, targetTotal: Int, contentH: Int) {
         if (!attached) return
         windowHeld = true
         val pad = 2 * glowPad()
+        val c0 = targetX(curTotal + pad).toFloat()
+        val c1 = targetX(targetTotal + pad).toFloat()
         // headroom: the opening spring overshoots the final size by a few percent, and the window must contain that
-        params.width = (contentW * OVERSHOOT_ROOM).toInt() + pad
+        val h0 = (curTotal * OVERSHOOT_ROOM + pad) / 2f
+        val h1 = (targetTotal * OVERSHOOT_ROOM + pad) / 2f
+        val left = min(c0 - h0, c1 - h1)
+        val right = max(c0 + h0, c1 + h1)
+        params.width = (right - left).toInt()
         params.height = (max(contentH, pillHeight()) * OVERSHOOT_ROOM).toInt() + pad
-        params.x = targetX(params.width)
+        holdCenter = ((left + right) / 2f).toInt()
+        params.x = holdCenter
+        row.translationX = c0 - holdCenter
         try { wm.updateViewLayout(root, params) } catch (_: Exception) {}
     }
 
@@ -786,6 +806,7 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
         params.width = WindowManager.LayoutParams.WRAP_CONTENT
         params.height = WindowManager.LayoutParams.WRAP_CONTENT
         params.x = targetX(curW + curL + curRt + 2 * glowPad())
+        row.translationX = 0f      // the window now sits exactly where the row was drawn
         if (attached) try { wm.updateViewLayout(root, params) } catch (_: Exception) {}
     }
 
@@ -999,7 +1020,10 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
             val pad = 2 * glowPad()
             params.width = maxWidth(pillHeight(), withSecondary = true) + pad
             params.height = ctx.dpi(300) + pad
-            params.x = targetX(params.width)
+            // the drop appears at the row centre, so centre the window where the drop belongs (not where a big pill would sit)
+            params.x = targetX(dropSize() + pad)
+            holdCenter = params.x
+            row.translationX = 0f
         }
         return try {
             root.visibility = if (suppressed) View.INVISIBLE else View.VISIBLE
@@ -1027,6 +1051,7 @@ class IslandOverlay(private val ctx: Context, private val windowType: Int) {
             attached = false
         }
         windowHeld = false
+        row.translationX = 0f
         params.width = WindowManager.LayoutParams.WRAP_CONTENT
         params.height = WindowManager.LayoutParams.WRAP_CONTENT
         params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
