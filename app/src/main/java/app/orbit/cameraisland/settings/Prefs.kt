@@ -44,6 +44,7 @@ object Prefs {
     const val HIDE_APPS = "hide_apps"              // string set
     const val HIDE_LANDSCAPE = "hide_landscape"
     const val SHOW_IN_FULLSCREEN = "show_in_fullscreen"   // default off: the island hides while an app is full screen
+    const val NOTIFS_IN_FULLSCREEN = "notifs_in_fullscreen" // default on: new notifications still peek in over a full-screen app
 
     // ---- Live activities ----
     const val LIVE_CALLS = "live_calls"

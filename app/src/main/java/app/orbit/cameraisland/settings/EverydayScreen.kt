@@ -16,7 +16,9 @@ object EverydayScreen {
 
         ui.section("Hide automatically")
         ui.toggle("Show in full screen", Prefs.SHOW_IN_FULLSCREEN, false,
-            "Off (default): the island hides while an app is full screen, e.g. a video or a game, and returns when you leave it. System alerts, the volume slider and incoming calls still appear. Needs the accessibility service.")
+            "Off (default): the island hides while an app is full screen, e.g. a video or a game, and returns when you leave it. System alerts, the volume slider, incoming calls and notifications (next option) still appear. Needs the accessibility service.")
+        ui.toggle("Show notifications in full screen", Prefs.NOTIFS_IN_FULLSCREEN, true,
+            "On (default): a new notification still peeks in over a full-screen app, then the island tucks away again. Turn off to keep full-screen apps completely clear. Needs the accessibility service.")
         ui.toggle("Hide in landscape", Prefs.HIDE_LANDSCAPE, false)
         ui.valueRow("Hide in selected apps", "Video players, games…",
             { val n = ui.prefs.getStringSet(Prefs.HIDE_APPS, emptySet())?.size ?: 0; if (n == 0) "None" else "$n apps" }) {

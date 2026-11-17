@@ -45,7 +45,10 @@ class DebugReceiver : BroadcastReceiver() {
                 android.util.Log.d("IslandWin", "screenH=$h :: $line")
             }
             "app.orbit.cameraisland.DEBUG_PREF" ->
-                app.orbit.cameraisland.settings.Prefs.get(ctx).edit().putString(i.getStringExtra("key"), i.getStringExtra("value")).apply()
+                app.orbit.cameraisland.settings.Prefs.get(ctx).edit().apply {
+                    val v = i.getStringExtra("value")
+                    if (v == "true" || v == "false") putBoolean(i.getStringExtra("key"), v.toBoolean()) else putString(i.getStringExtra("key"), v)
+                }.apply()
             "app.orbit.cameraisland.DEBUG_AUDIO" -> {
                 val a = ctx.getSystemService(android.media.AudioManager::class.java)
                 val cc = app.orbit.cameraisland.activities.CallControls
