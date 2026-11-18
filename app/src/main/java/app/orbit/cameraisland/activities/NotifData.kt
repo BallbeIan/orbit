@@ -45,6 +45,14 @@ class NotifData(private val ctx: Context, val sbn: StatusBarNotification, val im
     val isCall: Boolean = category == Notification.CATEGORY_CALL || template.endsWith("CallStyle")
     /** 1 incoming, 2 ongoing, 3 screening (CallStyle); 0 unknown. */
     val callType: Int = ex.getInt("android.callType", 0)
+    private fun pendingExtra(key: String): android.app.PendingIntent? = try {
+        if (android.os.Build.VERSION.SDK_INT >= 33) ex.getParcelable(key, android.app.PendingIntent::class.java)
+        else @Suppress("DEPRECATION") ex.getParcelable<android.app.PendingIntent>(key)
+    } catch (_: Throwable) { null }
+    /** CallStyle keeps its buttons in the extras, not in the action list: these are what Answer / Decline / Hang up really do. */
+    val answerIntent: android.app.PendingIntent? get() = pendingExtra("android.answerIntent")
+    val declineIntent: android.app.PendingIntent? get() = pendingExtra("android.declineIntent")
+    val hangUpIntent: android.app.PendingIntent? get() = pendingExtra("android.hangUpIntent")
     val isRingingAlarm: Boolean = category == Notification.CATEGORY_ALARM &&
         (n.fullScreenIntent != null || n.flags and Notification.FLAG_INSISTENT != 0)
     val isNavigation: Boolean = category == "navigation"

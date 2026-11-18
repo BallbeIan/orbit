@@ -73,6 +73,11 @@ class LiveBuilders(private val ctx: Context) {
 
     // ---- Calls ----
 
+    /** Ends the foreground phone-app call through Telecom (Android 9+). False if it can't or did nothing. */
+    @Suppress("DEPRECATION")
+    private fun endCall(telecom: TelecomManager): Boolean =
+        android.os.Build.VERSION.SDK_INT >= 28 && try { telecom.endCall() } catch (_: Exception) { false }
+
     @Suppress("DEPRECATION")   // TelecomManager.acceptRingingCall / endCall: still the only way without a button
     fun call(d: NotifData): IslandActivity {
         val incoming = d.callType == 1 || (d.callType == 0 && d.n.fullScreenIntent != null && !d.chronometer)
@@ -103,7 +108,7 @@ class LiveBuilders(private val ctx: Context) {
                 if (b.color != GREEN) b
                 else ActionButton(b.label, b.color, b.icon) {
                     val act = d.actions.firstOrNull { it.title?.toString() == b.label.toString() && it.actionIntent != null }
-                    val ok = act?.actionIntent?.let { Intents.send(ctx, it) } ?: false
+                    val ok = (act?.actionIntent ?: d.answerIntent)?.let { Intents.send(ctx, it) } ?: false
                     if (!ok) {
                         val fs = d.n.fullScreenIntent
                         if (fs == null || !Intents.send(ctx, fs)) open(d)()
@@ -114,18 +119,36 @@ class LiveBuilders(private val ctx: Context) {
                 btns = btns + ActionButton("Answer", GREEN) { try { telecom.acceptRingingCall() } catch (_: Exception) {} }
             if (btns.none { it.color == GREEN } && !systemCall)
                 btns = btns + ActionButton("Answer", GREEN) {
-                    val fs = d.n.fullScreenIntent
-                    if (fs == null || !Intents.send(ctx, fs)) open(d)()
+                    val ok = d.answerIntent?.let { Intents.send(ctx, it) } ?: false
+                    if (!ok) {
+                        val fs = d.n.fullScreenIntent
+                        if (fs == null || !Intents.send(ctx, fs)) open(d)()
+                    }
                 }
-            if (btns.none { it.color == RED } && canTelecom && android.os.Build.VERSION.SDK_INT >= 28)
-                btns = listOf(ActionButton("Decline", RED) { try { telecom.endCall() } catch (_: Exception) {} }) + btns
+            if (btns.none { it.color == RED } && (d.declineIntent != null || canTelecom && android.os.Build.VERSION.SDK_INT >= 28))
+                btns = listOf(ActionButton("Decline", RED) {
+                    // the call's own decline first (the only thing that works for WhatsApp, Telegram...), then Telecom
+                    val sent = !systemCall && (d.declineIntent?.let { Intents.send(ctx, it) } ?: false)
+                    if (!sent) {
+                        val ok = endCall(telecom)
+                        if (!ok) d.declineIntent?.let { Intents.send(ctx, it) }
+                    }
+                }) + btns
             // order: red (decline) first, green (answer) last, like a phone UI
             btns = btns.sortedBy { if (it.color == RED) 0 else if (it.color == GREEN) 2 else 1 }
         } else {
             a.subtitle = d.text.ifEmpty { "On call" }
             a.trailing = if (d.isTimer) Trailing.Timer(d.whenMs, false) else Trailing.Dot(GREEN)
-            if (btns.none { it.color == RED } && canTelecom && android.os.Build.VERSION.SDK_INT >= 28)
-                btns = btns + ActionButton("Hang up", RED) { try { telecom.endCall() } catch (_: Exception) {} }
+            val systemCall = d.pkg in dialerPackages
+            if (btns.none { it.color == RED } && (d.hangUpIntent != null || canTelecom && android.os.Build.VERSION.SDK_INT >= 28))
+                btns = btns + ActionButton("Hang up", RED) {
+                    // Telecom can only end phone-app calls; an app's own call (WhatsApp...) ends through the call's own hang-up
+                    val sent = !systemCall && (d.hangUpIntent?.let { Intents.send(ctx, it) } ?: false)
+                    if (!sent) {
+                        val ok = endCall(telecom)
+                        if (!ok) d.hangUpIntent?.let { Intents.send(ctx, it) }
+                    }
+                }
             // The call notification normally only offers Hang up, so add Mute and Speaker (unless it has its own).
             fun has(word: String) = btns.any { it.label.toString().contains(word, ignoreCase = true) }
             val refresh = { IslandController.post(call(d)) }
@@ -135,7 +158,9 @@ class LiveBuilders(private val ctx: Context) {
                 controls += ActionButton(if (on) "Unmute" else "Mute", if (on) BLUE else 0) { CallControls.toggleMute(ctx); refresh() }
             }
             // Audio output: a menu of the outputs the phone has (earpiece, speaker, headphones, Bluetooth).
-            if (!has("speaker")) {
+            // Android lets only the app that owns a call (the phone app) change its audio output, so the menu is offered for
+            // phone-app calls only, and dropped for the rest of a call once the system has refused a change.
+            if (!has("speaker") && systemCall && d.key !in routeBlocked) {
                 val kind = CallControls.currentKind(ctx)
                 controls += ActionButton(kind.label + " \u25BE", if (kind != CallControls.Kind.EARPIECE) BLUE else 0) {
                     routeMenu.add(d.key); refresh()
@@ -150,6 +175,8 @@ class LiveBuilders(private val ctx: Context) {
 
     /** Calls whose audio-output menu is open (it replaces the button row until a choice is made). */
     private val routeMenu = HashSet<String>()
+    /** Calls where the system refused an audio-output change: no point offering the menu again. */
+    private val routeBlocked = HashSet<String>()
 
     private fun routeButtons(d: NotifData, a: IslandActivity, refresh: () -> Unit): List<ActionButton> {
         val current = CallControls.currentKind(ctx)
@@ -160,10 +187,9 @@ class LiveBuilders(private val ctx: Context) {
                 handler.postDelayed({
                     if (CallControls.currentKind(ctx) == r.kind) refresh()
                     else {
-                        // Android only lets the phone app change a call's audio route, so say so and open it
+                        // the system kept the old route: only the phone app may change it, so stop offering the button
+                        routeBlocked.add(d.key)
                         refresh()
-                        android.widget.Toast.makeText(ctx, "This phone only lets the call screen change the audio output", android.widget.Toast.LENGTH_LONG).show()
-                        IslandController.open(a)
                     }
                 }, 400)     // the audio route takes a moment to change
             }
