@@ -48,6 +48,7 @@ object Prefs {
 
     // ---- Live activities ----
     const val LIVE_CALLS = "live_calls"
+    const val APP_CALL_SPEAKER = "app_call_speaker"   // default off: press the call app's own speaker button (accessibility)
     const val LIVE_TIMERS = "live_timers"
     const val LIVE_NAV = "live_nav"
     const val LIVE_PROGRESS = "live_progress"

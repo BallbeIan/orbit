@@ -19,6 +19,7 @@ import app.orbit.cameraisland.settings.Prefs
  * Hosts the overlay as TYPE_ACCESSIBILITY_OVERLAY (draws over the status bar / cutout / lock screen),
  * performs global gestures (home, recents, screenshot...), and reports the foreground app.
  * It only looks at which windows exist (type, bounds, owning app), never at the content of other apps' windows.
+ * The one exception is opt-in: [app.orbit.cameraisland.activities.InAppSpeaker] presses a call app's speaker button.
  * (canRetrieveWindowContent is declared because Android requires it to list windows at all.)
  */
 class IslandAccessibilityService : AccessibilityService() {

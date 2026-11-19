@@ -60,6 +60,8 @@ object IslandController : SharedPreferences.OnSharedPreferenceChangeListener {
 
     // rule state
     private var foregroundPkg: String? = null
+    /** The app in front, as last reported by the accessibility service (null if unknown). */
+    val foregroundApp: String? get() = foregroundPkg
     private var screenOn = true
     private val idle = IslandActivity("idle", ActivityType.IDLE)
 

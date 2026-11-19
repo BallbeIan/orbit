@@ -166,6 +166,15 @@ class LiveBuilders(private val ctx: Context) {
                     routeMenu.add(d.key); refresh()
                 }
             }
+            // App calls (WhatsApp...): Android won't let us move their audio, so, if the user opted in, press the app's
+            // own speaker button through the accessibility service.
+            if (!has("speaker") && !systemCall && InAppSpeaker.available() &&
+                app.orbit.cameraisland.settings.Prefs.get(ctx).getBoolean(app.orbit.cameraisland.settings.Prefs.APP_CALL_SPEAKER, false)) {
+                val on = CallControls.currentKind(ctx) == CallControls.Kind.SPEAKER
+                controls += ActionButton("Speaker", if (on) BLUE else 0) {
+                    InAppSpeaker.press(ctx, d) { handler.postDelayed({ refresh() }, 300) }
+                }
+            }
             btns = controls + btns
             if (d.key in routeMenu) btns = routeButtons(d, a, refresh)
         }

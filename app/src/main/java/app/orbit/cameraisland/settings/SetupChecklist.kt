@@ -104,8 +104,9 @@ class SetupChecklist(private val ui: UiKit) {
                         "• draw the island over the status bar and lock screen\n" +
                         "• run the gestures you choose: home, recents, back, screenshot, lock screen, open the notification shade\n" +
                         "• notice which app is in front, whether it is full screen, and whether the notification shade is open, so the island can hide\n" +
-                        "• if you turn it on, handle the volume keys for the island's volume slider\n\n" +
-                        "Orbit only looks at which windows are on screen (their type, size and app name), never at what is inside them. " +
+                        "• if you turn it on, handle the volume keys for the island's volume slider\n" +
+                        "• if you turn on \"Speaker button for app calls\", press the speaker button on a WhatsApp, Telegram or Signal call screen when you tap Speaker\n\n" +
+                        "Apart from that one button, Orbit only looks at which windows are on screen (their type, size and app name), never at what is inside them. " +
                         "It does not read, record or send your screen, what you type or your passwords. Nothing leaves your device.") {
                     act.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 }
