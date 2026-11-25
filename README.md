@@ -14,7 +14,7 @@ A small black pill around your front camera that shows what's happening on your 
 
 **[Download the latest APK](https://github.com/BallbeIan/orbit/releases/latest)** and follow [Installing](#installing). A Google Play release is planned.
 
-<img src="docs/images/store/feature-graphic.png" alt="Orbit: Dynamic Island, a live pill at your front camera for music, calls and alerts" width="760">
+<img src="docs/images/feature-graphic.png" alt="Orbit: Dynamic Island, a live pill at your front camera for music, calls and alerts" width="760">
 
 </div>
 
@@ -47,24 +47,18 @@ A small black pill around your front camera that shows what's happening on your 
 
 <table>
   <tr>
-    <td><img src="docs/images/store/01-music-player.png" width="230" alt="Music player on the island"></td>
-    <td><img src="docs/images/store/02-notification-peek.png" width="230" alt="Notifications at a glance"></td>
-    <td><img src="docs/images/store/03-double-pill.png" width="230" alt="Two things at once"></td>
-    <td><img src="docs/images/store/04-charging.png" width="230" alt="Charging alert"></td>
+    <td><img src="docs/images/screenshots/01-music-player.png" width="230" alt="Music player on the island"></td>
+    <td><img src="docs/images/screenshots/02-notification-peek.png" width="230" alt="Notifications at a glance"></td>
+    <td><img src="docs/images/screenshots/03-double-pill.png" width="230" alt="Two things at once"></td>
+    <td><img src="docs/images/screenshots/04-charging.png" width="230" alt="Charging alert"></td>
   </tr>
   <tr>
-    <td><img src="docs/images/store/05-look.png" width="230" alt="Design the island with a live preview"></td>
-    <td><img src="docs/images/store/06-activities.png" width="230" alt="Choose what the island shows"></td>
-    <td><img src="docs/images/store/07-music-settings.png" width="230" alt="Preview every activity"></td>
-    <td><img src="docs/images/store/08-alerts-settings.png" width="230" alt="Make every alert yours"></td>
+    <td><img src="docs/images/screenshots/05-look.png" width="230" alt="Design the island with a live preview"></td>
+    <td><img src="docs/images/screenshots/06-activities.png" width="230" alt="Choose what the island shows"></td>
+    <td><img src="docs/images/screenshots/07-music-settings.png" width="230" alt="Preview every activity"></td>
+    <td><img src="docs/images/screenshots/08-alerts-settings.png" width="230" alt="Make every alert yours"></td>
   </tr>
 </table>
-
-<div align="center">
-<img src="docs/images/store/01-music-player.png" alt="The expanded music player: artwork, title, seek bar and transport controls" width="380">
-<img src="docs/images/store/02-quick-reply.png" alt="An expanded message with an inline reply field" width="380"><br>
-<sub>Expanded music player (seek, skip and pause) and an inline reply, right from the island.</sub>
-</div>
 
 ## Gestures
 
@@ -82,6 +76,8 @@ Show the island only when something is happening (or always), set active hours, 
 4. Play some music, start a timer, or toggle Do Not Disturb: the island appears around your front camera.
 
 To check the download, compare its SHA-256 with the `.sha256` file on the release page. Updates install over the top of an existing install, and keep your settings.
+
+Once Orbit is on Google Play, the Play version and this APK are signed differently and cannot update each other: uninstall one before installing the other.
 
 ## Requirements and compatibility
 
@@ -133,13 +129,15 @@ On Android 13 and newer, an app installed outside the Play Store needs **"Allow 
 
 You need JDK 17 and the Android SDK (platform 36, build-tools 36.0.0).
 
-```bash
+```powershell
 git clone https://github.com/BallbeIan/orbit.git
 cd orbit
-export ANDROID_HOME=~/Android/Sdk
-./gradlew assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
-./gradlew lint
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+.\gradlew.bat assembleDebug    # app\build\outputs\apk\debug\app-debug.apk
+.\gradlew.bat lint
 ```
+
+On macOS or Linux, use `export ANDROID_HOME=~/Android/Sdk` and `./gradlew` instead.
 
 Or open the folder in Android Studio and run it on a device.
 

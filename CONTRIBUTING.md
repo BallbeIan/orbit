@@ -13,7 +13,7 @@ Orbit has been developed and tested on one Samsung foldable. How it behaves on o
 
 ## Building
 
-See [Building from source](README.md#building-from-source). Run `./gradlew lint assembleDebug` before opening a pull request.
+See [Building from source](README.md#building-from-source). Run `.\gradlew.bat lint assembleDebug` (`./gradlew` on macOS or Linux) before opening a pull request.
 
 ## Pull requests
 
